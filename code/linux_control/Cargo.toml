@@ -1,0 +1,17 @@
+[package]
+name = "linux_control"
+version = "0.1.0"
+authors = ["will <will@yager.io>"]
+
+[dependencies]
+serialport = "~3.3.0"
+structopt = "~0.3.8"
+
+[dependencies.vumeter_lib]
+path = "../vumeter_lib"
+version = "~0.1"
+
+
+[[bin]]
+name = "main"
+

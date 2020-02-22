@@ -1,0 +1,38 @@
+[package]
+name = "vumeter_sound"
+version = "0.1.0"
+authors = ["will <will@yager.io>"]
+edition = "2018"
+keywords = ["no-std", "arm", "cortex-m", "embedded-hal"]
+#bin.path = "bin"
+#build = "build.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cortex-m = "~0.6"
+embedded-hal = "~0.2"
+nb = "~0.1"
+imxrt1062-pac = { git = "https://github.com/mciantyre/teensy4-rs.git", rev = "cd70737"}
+imxrt1062-rt = { git = "https://github.com/mciantyre/teensy4-rs.git", rev = "cd70737"}
+teensy4-bsp = { git = "https://github.com/mciantyre/teensy4-rs.git", rev = "cd70737"}
+log = { version = "0.4.8", features = ["release_max_level_info"] }
+panic-halt = "~0.2"
+libm = "~0.2.1"
+biquad = "~0.3.0"
+cty = "~0.2.1"
+volatile="~0.2.6"
+
+[build-dependencies]
+cc = "~1.0.48"
+
+[dependencies.vumeter_lib]
+path = "../vumeter_lib"
+version = "~0.1"
+
+
+[[bin]]
+name = "main"
+
+[lib]
+name = "boardlib"
+path = "src/lib/lib.rs"

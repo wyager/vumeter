@@ -1,0 +1,13 @@
+[package]
+name = "vumeter_lib"
+version = "0.1.0"
+authors = ["will <will@yager.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+biquad = "~0.3.0"
+libm = "~0.2.1"
+log = { version = "0.4.8", features = ["release_max_level_info"] }
+

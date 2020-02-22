@@ -1,0 +1,2 @@
+Everything under code/ is MIT licensed.
+Everything under schematics/ is free for personal or educational use, but not for commercial use. Email me if you want to manufacture any of this stuff and sell it.

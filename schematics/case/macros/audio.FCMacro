@@ -1,0 +1,523 @@
+import Sketcher
+from Part import *
+from FreeCAD import Units
+import FreeCAD
+import importSVG
+
+def v_(x,y):
+    return App.Vector(x,-y,0)
+
+def l(a,b):
+    return Part.LineSegment(a,b)
+
+def s(ss):
+    return Part.Shape(ss)
+
+
+def w(es):
+    return Part.Wire(es)
+
+
+
+def pairs(l):
+    for i in range(0,len(l)-1):
+        yield (l[i],l[i+1])
+    yield (l[-1],l[0])
+
+ss = App.ActiveDocument.Spreadsheet
+doc = App.ActiveDocument
+
+
+q = lambda s : Units.Quantity(s)
+
+brd_left = q("16.00mm")
+brd_right = q("19.5mm")
+mnt_hole_diam = q("2.7 mm")
+mnt_horiz_sep = q("24.0mm")
+mnt_vert_sep = q("8mm")
+brd_total_width = brd_left + brd_right + mnt_horiz_sep
+lemo_diameter = q("9mm")
+acrylic_thickness = q("3mm")
+acrylic_thickness_slop = q("0.2mm") 
+cutout_slop = q("0.02mm")
+l_r_pcb_margin = q("5mm")
+
+front_of_holes = q("5.5mm")
+front_rear_pcb_margin = q("9mm")
+rear_of_holes = q("5.5mm")
+
+
+cutout_width = acrylic_thickness + acrylic_thickness_slop 
+cutout_exterior_support = q("5mm")
+cutout_height = q("3mm")
+cutout_seps_top = q("25mm")
+cutout_seps_back = q("6mm")
+
+bottom_total_width_no_cutouts = l_r_pcb_margin * 2 + brd_total_width
+bottom_total_width = bottom_total_width_no_cutouts + 2 * (cutout_width + cutout_exterior_support)
+bottom_total_height_no_crenellations = mnt_vert_sep + rear_of_holes + front_of_holes + front_rear_pcb_margin * 2
+
+
+
+crenellation_height = acrylic_thickness
+crenellation_count = 4 # Full cycle
+crenellation_width = bottom_total_width / crenellation_count
+
+
+
+
+
+def poly_(l):
+    pts = list(l)
+    outline = [LineSegment(a,b) for (a,b) in pairs(pts)]
+    outline = Part.Wire(Shape(outline).Edges)
+    return outline
+
+def rect2_(a,b):
+    return poly_([App.Vector(a.x,a.y),App.Vector(a.x,b.y),App.Vector(b.x,b.y),App.Vector(b.x,a.y)])
+
+
+def circle_(c,r):
+    return Wire(makeCircle(r,c,App.Vector(0,0,1)))
+
+def outline_(height):
+    half = crenellation_width / 2
+    x = q("0 mm")
+    y = q("0 mm")
+    dy = -crenellation_height
+    # if flip:
+    #     y += dy
+    #     dy = -dy
+    dx = half
+    slop = cutout_slop
+    def go():
+        nonlocal x, y, dx, dy
+        x -= slop / 2
+        for i in range(crenellation_count):
+            x += slop 
+            yield v_(x,y)
+            x += dx # slop / 2
+            yield v_(x,y)
+            y += dy
+            yield v_(x, y)
+            x += slop 
+            x += dx - slop * 2
+            yield v_(x, y)
+            y -= dy
+            yield v_(x,y)
+        x += slop / 2
+    yield from go()
+    # x -= slop/4
+    # if flip:
+    #     y += dy * 2
+        # x += slop
+        # slop = -slop
+    dy *= -1
+    dx *= -1
+    slop = -slop
+    y += height
+    yield from go()
+
+
+def side_slots_(y_center,cutout_seps):
+        y = y_center 
+        x = cutout_width + cutout_exterior_support
+        dx = -cutout_width
+        dy0 = cutout_seps/2
+        dy1 = dy0 + cutout_height
+        def go():
+            nonlocal x,dx,dy0,dy1
+            yield rect2_(v_(x,y+dy0),v_(x+dx,y+dy1))
+            yield rect2_(v_(x,y-dy0),v_(x+dx,y-dy1))
+        yield from go()
+        dx *= -1
+        x = bottom_total_width - x
+        yield from go()
+
+stand_hole_side_margin = q("10mm")
+stand_hole_back_margin = q("5mm")
+
+def bottom():
+    def stand_mounts_():
+        d = 2.7/2
+        xo = cutout_width + cutout_exterior_support + stand_hole_side_margin
+        for x in [xo, bottom_total_width - xo]:
+            for y in [stand_hole_back_margin,bottom_total_height_no_crenellations - stand_hole_back_margin]:
+                yield circle_(v_(x,y),d) 
+    def tube_mounts_(c):
+        for dx in [-mnt_horiz_sep/2,mnt_horiz_sep/2]:
+            for dy in [-mnt_vert_sep/2,mnt_vert_sep/2]:
+                yield circle_(c+v_(dx,dy),2.7/2) 
+        yield circle_(c,2.7/2)
+    def cutouts_():
+        yield from stand_mounts_()
+        yield from side_slots_(bottom_total_height_no_crenellations / 2, cutout_seps_top)
+        y_center = mnt_vert_sep/2 + rear_of_holes + front_rear_pcb_margin 
+        x_center = cutout_width + cutout_exterior_support
+        # x_center += lemo_total
+        x_center += l_r_pcb_margin
+        x_center += brd_left
+        x_center += mnt_horiz_sep/2
+        yield from tube_mounts_(v_(x_center,y_center))
+        # x_center += mnt_horiz_sep
+        # x_center -= tube_brd_width/2
+        # x_center += brd_right
+        # x_center += mnt_horiz_sep/2
+        # yield from tube_mounts_(v_(x_center,y_center))
+    # outline = [LineSegment(a,b) for (a,b) in pairs(list(outline_(p)))]
+    # outline = Part.Wire(Shape(outline).Edges)
+    outline = poly_(outline_(bottom_total_height_no_crenellations))
+    cutouts = list(cutouts_())
+    # face = Face([outline] + cutouts)
+    outline = outline.fuse(cutouts)
+    try:
+        doc.removeObject('aud_base_outline')
+        doc.removeObject('aud_base_extr')
+    except:
+        pass
+    Part.show(outline, 'aud_base_outline')
+    importSVG.export([doc.getObject('aud_base_outline')], u'/Users/will/Documents/projects/vumeter/schematics/case/aud_base.svg')
+    # Part.show(outline.extrude(App.Vector(0,0,acrylic_thickness)))
+    extrude = doc.addObject('Part::Extrusion', 'aud_base_extr')
+    extrude.Base = doc.getObject('aud_base_outline')
+    extrude.DirMode = "Normal"
+    extrude.DirLink = None
+    extrude.LengthFwd = acrylic_thickness
+    extrude.LengthRev = 0.000000000000000
+    extrude.Solid = True
+    extrude.Reversed = False
+    extrude.Symmetric = False
+    extrude.TaperAngle = 0.000000000000000
+    extrude.TaperAngleRev = 0.000000000000000
+
+
+back_total_height_no_crenellations = q("30 mm")
+back_ab_cutout_margins = q("7mm")
+switch_offset_from_left = q("24.25mm")
+switch_hole_height = q("22mm")
+switch_hole_diam = q("10mm")
+
+def back():
+    def cutouts_():
+        # l = cutout_exterior_support + cutout_width # + l_r_pcb_margin
+        # r = l + lemo_total
+        # c = (r + l) / 2
+        switch_x = cutout_exterior_support + cutout_width + l_r_pcb_margin + switch_offset_from_left
+        yield circle_(v_(switch_x,  switch_hole_height), switch_hole_diam/2)
+        # yield circle_(v_(c, back_total_height_no_crenellations/2), lemo_diameter/2)
+        # c += l_r_pcb_margin * 2 + tube_brd_width * number_of_tbs + lemo_total
+        # yield circle_(v_(c, back_total_height_no_crenellations/2), lemo_diameter/2)
+        # yield rect2_(v_(l,back_ab_cutout_margins), \
+        #     v_(r, back_total_height_no_crenellations - back_ab_cutout_margins))
+        yield from side_slots_(back_total_height_no_crenellations / 2, cutout_seps_back)
+    # outline = [LineSegment(a,b) for (a,b) in pairs(list(outline_(p)))]
+    # outline = Part.Wire(Shape(outline).Edges)
+    outline = poly_(outline_(back_total_height_no_crenellations))
+    cutouts = list(cutouts_())
+    # face = Face([outline] + cutouts)
+    outline = outline.fuse(cutouts)
+    try:
+        doc.removeObject('aud_back_outline')
+        doc.removeObject('aud_back_extr')
+    except:
+        pass
+    Part.show(outline, 'aud_back_outline')
+    importSVG.export([doc.getObject('aud_back_outline')], u'/Users/will/Documents/projects/vumeter/schematics/case/aud_back.svg')
+    doc.aud_back_outline.Placement = App.Placement(App.Vector(0,0,back_total_height_no_crenellations+crenellation_height),App.Rotation(App.Vector(1,0,0),90))
+    # Part.show(outline.extrude(App.Vector(0,0,acrylic_thickness)))
+    extrude = doc.addObject('Part::Extrusion', 'aud_back_extr')
+    extrude.Base = doc.getObject('aud_back_outline')
+    extrude.DirMode = "Normal"
+    extrude.DirLink = None
+    extrude.LengthFwd = acrylic_thickness
+    extrude.LengthRev = 0.000000000000000
+    extrude.Solid = True
+    extrude.Reversed = False
+    extrude.Symmetric = False
+    extrude.TaperAngle = 0.000000000000000
+    extrude.TaperAngleRev = 0.000000000000000
+
+def front():
+    def cutouts_():
+        yield from side_slots_(back_total_height_no_crenellations / 2, cutout_seps_back)
+    # outline = [LineSegment(a,b) for (a,b) in pairs(list(outline_(p)))]
+    # outline = Part.Wire(Shape(outline).Edges)
+    outline = poly_(outline_(back_total_height_no_crenellations))
+    cutouts = list(cutouts_())
+    # face = Face([outline] + cutouts)
+    outline = outline.fuse(cutouts)
+    try:
+        doc.removeObject('aud_front_outline')
+        doc.removeObject('aud_front_extr')
+    except:
+        pass
+    Part.show(outline, 'aud_front_outline')
+    importSVG.export([doc.getObject('aud_front_outline')], u'/Users/will/Documents/projects/vumeter/schematics/case/aud_front.svg')
+    doc.aud_front_outline.Placement = App.Placement(App.Vector(0,-bottom_total_height_no_crenellations - crenellation_height, crenellation_height),App.Rotation(App.Vector(1,0,0),-90))
+    # Part.show(outline.extrude(App.Vector(0,0,acrylic_thickness)))
+    extrude = doc.addObject('Part::Extrusion', 'aud_front_extr')
+    extrude.Base = doc.getObject('aud_front_outline')
+    extrude.DirMode = "Normal"
+    extrude.DirLink = None
+    extrude.LengthFwd = acrylic_thickness
+    extrude.LengthRev = 0.000000000000000
+    extrude.Solid = True
+    extrude.Reversed = False
+    extrude.Symmetric = False
+    extrude.TaperAngle = 0.000000000000000
+    extrude.TaperAngleRev = 0.000000000000000
+
+# tube_dist_from_board_bottom = q("11.175mm")
+# tube_diam_with_slop = q("10.1mm")
+
+
+def flip_(it,yo):
+    for pos in it:
+        pos.y *= -1
+        pos += v_(q("0mm"),yo)
+        yield pos
+
+def top():
+    def cutouts_():
+        yield from side_slots_(bottom_total_height_no_crenellations / 2, cutout_seps_top)
+    # outline = [LineSegment(a,b) for (a,b) in pairs(list(outline_(p)))]
+    # outline = Part.Wire(Shape(outline).Edges)
+    outline = poly_(flip_(outline_(bottom_total_height_no_crenellations),bottom_total_height_no_crenellations))
+    cutouts = list(cutouts_())
+    # face = Face([outline] + cutouts)
+    outline = outline.fuse(cutouts)
+    try:
+        doc.removeObject('aud_top_outline')
+        doc.removeObject('aud_top_extr')
+    except:
+        pass
+    Part.show(outline, 'aud_top_outline')
+    importSVG.export([doc.getObject('aud_top_outline')], u'/Users/will/Documents/projects/vumeter/schematics/case/aud_top.svg')
+    doc.aud_top_outline.Placement = App.Placement(App.Vector(0,0, crenellation_height + back_total_height_no_crenellations),App.Rotation(App.Vector(1,0,0),0))
+    # Part.show(outline.extrude(App.Vector(0,0,acrylic_thickness)))
+    extrude = doc.addObject('Part::Extrusion', 'aud_top_extr')
+    # doc.getObject("aud_top_extr").ShapeColor = (0.5,0.5,0.5)
+    # extrude.ShapeColor=(0.5,0.5,0.5)
+    extrude.Base = doc.getObject('aud_top_outline')
+    extrude.DirMode = "Normal"
+    extrude.DirLink = None
+    extrude.LengthFwd = acrylic_thickness
+    extrude.LengthRev = 0.000000000000000
+    extrude.Solid = True
+    extrude.Reversed = False
+    extrude.Symmetric = False
+    extrude.TaperAngle = 0.000000000000000
+    extrude.TaperAngleRev = 0.000000000000000
+
+
+
+#     . 
+#     .
+#     . . . . . . .
+#                 .  v^ bend_pole_height
+#     . . . . .   .
+#     . bsw   . . .  v^ bend_hook_height      <bend_slit_depth ^v bend_slit_width
+#     . . .
+#         .
+# . . . . .
+bend_slit_width = q("1.25mm")
+bend_slit_depth = q("5mm")
+bend_pole_height = q("1mm")
+bend_hook_height = q("0.2mm") 
+bend_hook_in_slope = q("0.1mm")
+bend_hook_flat = q("1mm")
+bend_hook_out_slope = q("1mm")
+
+side1_hole_horiz_margin = q("11mm")
+side1_hole_vert_margin = q("4mm")
+
+def side1():
+    def cutouts_():
+        # l = cutout_exterior_support + cutout_width # + l_r_pcb_margin
+        # r = l + lemo_total
+        # c = (r + l) / 2
+        # switch_x = cutout_exterior_support + cutout_width + l_r_pcb_margin + switch_offset_from_left
+        # yield circle_(v_(switch_x,  switch_hole_height), switch_hole_diam/2)
+        # yield circle_(v_(c, back_total_height_no_crenellations/2), lemo_diameter/2)
+        # c += l_r_pcb_margin * 2 + tube_brd_width * number_of_tbs + lemo_total
+        # yield circle_(v_(c, back_total_height_no_crenellations/2), lemo_diameter/2)
+        # yield rect2_(v_(l,back_ab_cutout_margins), \
+        #     v_(r, back_total_height_no_crenellations - back_ab_cutout_margins))
+        # yield from side_slots_(back_total_height_no_crenellations / 2, cutout_seps_back)
+        yield rect2_(v_(side1_hole_horiz_margin, side1_hole_vert_margin),
+            v_(bottom_total_height_no_crenellations - side1_hole_horiz_margin, back_total_height_no_crenellations - side1_hole_vert_margin))
+    def f(x):
+        assert(x.Unit == Units.Unit("1mm"))
+        return float(x/q("1mm"))
+    def single_hook_deltas_(up,out):
+        yield -out * f(bend_slit_depth)
+        yield up * f(bend_slit_width)
+        yield out * f(bend_slit_depth)
+        yield out * f(acrylic_thickness)
+        yield -up * f(bend_hook_height) + out * f(bend_hook_in_slope)
+        yield out * f(bend_hook_flat)
+        yield up * f(bend_hook_height) + out * f(bend_hook_out_slope) + up * f(bend_pole_height) / 2
+        yield up * f(bend_pole_height) / 2
+        yield -out * f(bend_hook_in_slope + bend_hook_flat + bend_hook_out_slope)
+        yield -out * f(acrylic_thickness)
+        yield -out * f(bend_slit_depth)
+        remaining = (cutout_height / 2) - bend_pole_height
+        yield up * f(remaining)
+    def both_hook_deltas_(up,out):
+        yield from single_hook_deltas_(up,out)
+        yield from list(single_hook_deltas_(up,-out))[::-1]
+    def side_deltas(side_len,up,out,cutout_seps):
+        outer = (side_len - cutout_height * 2 - bend_slit_width * 2 - cutout_seps)/2
+        yield up * f(outer)
+        yield from both_hook_deltas_(up,out)
+        yield up * f(cutout_seps - bend_slit_width * 2)
+        yield from both_hook_deltas_(up,out)
+        yield up * f(outer)
+    def accumulate(iter):
+        v = v_(0,0)
+        yield v
+        for d in iter:
+            v += d
+            yield v
+    def outline_deltas_():
+        x_ = v_(1,0)
+        y_ = v_(0,1)
+        yield from side_deltas(bottom_total_height_no_crenellations, x_, -y_, cutout_seps_top)
+        yield from side_deltas(back_total_height_no_crenellations, y_, x_, cutout_seps_back)
+        yield from side_deltas(bottom_total_height_no_crenellations, -x_, y_, cutout_seps_top)
+        yield from list(side_deltas(back_total_height_no_crenellations, -y_, -x_, cutout_seps_back))[:-1]
+        # yield v_(0,0)
+        # yield v_(bottom_total_height_no_crenellations,0)
+        # yield v_(bottom_total_height_no_crenellations,back_total_height_no_crenellations)
+        # yield v_(0,back_total_height_no_crenellations)
+    def outline_():
+        yield from (accumulate(outline_deltas_()))
+    outline = poly_(outline_())
+    cutouts = list(cutouts_())
+    outline = outline.fuse(cutouts)
+    # outline = [LineSegment(a,b) for (a,b) in pairs(list(outline_(p)))]
+    # outline = Part.Wire(Shape(outline).Edges)
+    try:
+        doc.removeObject('aud_side1_outline')
+        doc.removeObject('aud_side1_extr')
+    except:
+        pass
+    Part.show(outline, 'aud_side1_outline')
+    importSVG.export([doc.getObject('aud_side1_outline')], u'/Users/will/Documents/projects/vumeter/schematics/case/aud_side1.svg')
+    doc.aud_side1_outline.Placement = App.Placement(App.Vector(crenellation_height*0+cutout_exterior_support*1,-bottom_total_height_no_crenellations,crenellation_height+back_total_height_no_crenellations),App.Rotation(App.Vector(0.58,0.58,0.58),120))
+    # Part.show(outline.extrude(App.Vector(0,0,acrylic_thickness)))
+    extrude = doc.addObject('Part::Extrusion', 'aud_side1_extr')
+    extrude.Base = doc.getObject('aud_side1_outline')
+    extrude.DirMode = "Normal"
+    extrude.DirLink = None
+    extrude.LengthFwd = acrylic_thickness
+    extrude.LengthRev = 0.000000000000000
+    extrude.Solid = True
+    extrude.Reversed = False
+    extrude.Symmetric = False
+    extrude.TaperAngle = 0.000000000000000
+    extrude.TaperAngleRev = 0.000000000000000
+
+side2_rect_height = q("11mm")
+side2_lemo_height = q("7mm")
+side2_hole_horiz_margin = q("25mm")
+side2_hole_vert_margin = q("3mm")
+def side2():
+    def cutouts_():
+        # l = cutout_exterior_support + cutout_width # + l_r_pcb_margin
+        # r = l + lemo_total
+        # c = (r + l) / 2
+        # switch_x = cutout_exterior_support + cutout_width + l_r_pcb_margin + switch_offset_from_left
+        # yield circle_(v_(switch_x,  switch_hole_height), switch_hole_diam/2)
+        # yield circle_(v_(c, back_total_height_no_crenellations/2), lemo_diameter/2)
+        # c += l_r_pcb_margin * 2 + tube_brd_width * number_of_tbs + lemo_total
+        # yield circle_(v_(c, back_total_height_no_crenellations/2), lemo_diameter/2)
+        # yield rect2_(v_(l,back_ab_cutout_margins), \
+        #     v_(r, back_total_height_no_crenellations - back_ab_cutout_margins))
+        # yield from side_slots_(back_total_height_no_crenellations / 2, cutout_seps_back)
+        yield rect2_(v_(side2_hole_horiz_margin, back_total_height_no_crenellations - side2_hole_vert_margin - side2_rect_height),
+            v_(bottom_total_height_no_crenellations - side2_hole_horiz_margin, back_total_height_no_crenellations - side2_hole_vert_margin))
+        c = bottom_total_height_no_crenellations / 2
+        yield circle_(v_(c, side2_lemo_height), lemo_diameter/2)
+
+    def f(x):
+        assert(x.Unit == Units.Unit("1mm"))
+        return float(x/q("1mm"))
+    def single_hook_deltas_(up,out):
+        yield -out * f(bend_slit_depth)
+        yield up * f(bend_slit_width)
+        yield out * f(bend_slit_depth)
+        yield out * f(acrylic_thickness)
+        yield -up * f(bend_hook_height) + out * f(bend_hook_in_slope)
+        yield out * f(bend_hook_flat)
+        yield up * f(bend_hook_height) + out * f(bend_hook_out_slope) + up * f(bend_pole_height) / 2
+        yield up * f(bend_pole_height) / 2
+        yield -out * f(bend_hook_in_slope + bend_hook_flat + bend_hook_out_slope)
+        yield -out * f(acrylic_thickness)
+        yield -out * f(bend_slit_depth)
+        remaining = (cutout_height / 2) - bend_pole_height
+        yield up * f(remaining)
+    def both_hook_deltas_(up,out):
+        yield from single_hook_deltas_(up,out)
+        yield from list(single_hook_deltas_(up,-out))[::-1]
+    def side_deltas(side_len,up,out,cutout_seps):
+        outer = (side_len - cutout_height * 2 - bend_slit_width * 2 - cutout_seps)/2
+        yield up * f(outer)
+        yield from both_hook_deltas_(up,out)
+        yield up * f(cutout_seps - bend_slit_width * 2)
+        yield from both_hook_deltas_(up,out)
+        yield up * f(outer)
+    def accumulate(iter):
+        v = v_(0,0)
+        yield v
+        for d in iter:
+            v += d
+            yield v
+    def outline_deltas_():
+        x_ = v_(1,0)
+        y_ = v_(0,1)
+        yield from side_deltas(bottom_total_height_no_crenellations, x_, -y_, cutout_seps_top)
+        yield from side_deltas(back_total_height_no_crenellations, y_, x_, cutout_seps_back)
+        yield from side_deltas(bottom_total_height_no_crenellations, -x_, y_, cutout_seps_top)
+        yield from list(side_deltas(back_total_height_no_crenellations, -y_, -x_, cutout_seps_back))[:-1]
+        # yield v_(0,0)
+        # yield v_(bottom_total_height_no_crenellations,0)
+        # yield v_(bottom_total_height_no_crenellations,back_total_height_no_crenellations)
+        # yield v_(0,back_total_height_no_crenellations)
+    def outline_():
+        yield from (accumulate(outline_deltas_()))
+    outline = poly_(outline_())
+    cutouts = list(cutouts_())
+    outline = outline.fuse(cutouts)
+    # outline = [LineSegment(a,b) for (a,b) in pairs(list(outline_(p)))]
+    # outline = Part.Wire(Shape(outline).Edges)
+    try:
+        doc.removeObject('aud_side2_outline')
+        doc.removeObject('aud_side2_extr')
+    except:
+        pass
+    Part.show(outline, 'aud_side2_outline')
+    importSVG.export([doc.getObject('aud_side2_outline')], u'/Users/will/Documents/projects/vumeter/schematics/case/aud_side2.svg')
+    doc.aud_side2_outline.Placement = App.Placement(App.Vector(bottom_total_width-cutout_exterior_support-cutout_width,-bottom_total_height_no_crenellations,crenellation_height+back_total_height_no_crenellations),App.Rotation(App.Vector(0.58,0.58,0.58),120))
+    # Part.show(outline.extrude(App.Vector(0,0,acrylic_thickness)))
+    extrude = doc.addObject('Part::Extrusion', 'aud_side2_extr')
+    extrude.Base = doc.getObject('aud_side2_outline')
+    extrude.DirMode = "Normal"
+    extrude.DirLink = None
+    extrude.LengthFwd = acrylic_thickness
+    extrude.LengthRev = 0.000000000000000
+    extrude.Solid = True
+    extrude.Reversed = False
+    extrude.Symmetric = False
+    extrude.TaperAngle = 0.000000000000000
+    extrude.TaperAngleRev = 0.000000000000000
+
+bottom()
+back()
+front()
+top()
+side1()
+side2()
+
+
+doc.recompute()

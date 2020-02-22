@@ -1,0 +1,9 @@
+[submodule "code/teensy4-rs"]
+	path = code/teensy4-rs
+	url = https://github.com/mciantyre/teensy4-rs.git
+[submodule "code/audio_board/src/lib/c/audio"]
+	path = code/audio_board/embedded/src/lib/c/audio
+	url = https://github.com/PaulStoffregen/Audio.git
+[submodule "code/audio_board/src/lib/c/cores"]
+	path = code/audio_board/embedded/src/lib/c/cores
+	url = https://github.com/PaulStoffregen/cores.git
