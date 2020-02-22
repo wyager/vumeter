@@ -27,3 +27,4 @@ media/*
 sym-lib-table
 .ipynb_checkpoints
 *.swp
+*gerbers*
