@@ -1,0 +1,250 @@
+Last login: Thu Mar 24 20:47:15 on ttys000
+mbp % gdb -p 3333
+GNU gdb (GDB) 11.1
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-apple-darwin20.6.0".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+Attaching to process 3333
+Can't attach to process 3333: No such process (3)
+quit) 
+mbp % gdb target remote :3333
+Excess command line arguments ignored. (:3333)
+GNU gdb (GDB) 11.1
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-apple-darwin20.6.0".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+target: No such file or directory.
+/Users/will/remote: No such file or directory.
+quit) 
+mbp % gdb                    
+GNU gdb (GDB) 11.1
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-apple-darwin20.6.0".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+(gdb) target remote localhost:3333
+Remote debugging using localhost:3333
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000006c8 in ?? ()
+(gdb) stack
+Undefined command: "stack".  Try "help".
+(gdb) help
+List of classes of commands:
+
+aliases -- User-defined aliases of other commands.
+breakpoints -- Making program stop at certain points.
+data -- Examining data.
+files -- Specifying and examining files.
+internals -- Maintenance commands.
+obscure -- Obscure features.
+running -- Running the program.
+stack -- Examining the stack.
+status -- Status inquiries.
+support -- Support facilities.
+text-user-interface -- TUI is the GDB text based interface.
+tracepoints -- Tracing of program execution without stopping the program.
+user-defined -- User-defined commands.
+
+Type "help" followed by a class name for a list of commands in that class.
+Type "help all" for the list of all commands.
+Type "help" followed by command name for full documentation.
+Type "apropos word" to search for commands related to "word".
+Type "apropos -v word" for full documentation of commands related to "word".
+Command name abbreviations are allowed if unambiguous.
+(gdb) data
+Undefined command: "data".  Try "help".
+(gdb) stack
+Undefined command: "stack".  Try "help".
+(gdb) running
+Undefined command: "running".  Try "help".
+(gdb) file /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main 
+A program is being debugged already.
+Are you sure you want to change the file? (y or n) y
+Reading symbols from /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main...
+(gdb) 
+(gdb) stack
+Undefined command: "stack".  Try "help".
+(gdb) help
+List of classes of commands:
+
+aliases -- User-defined aliases of other commands.
+breakpoints -- Making program stop at certain points.
+data -- Examining data.
+files -- Specifying and examining files.
+internals -- Maintenance commands.
+obscure -- Obscure features.
+running -- Running the program.
+stack -- Examining the stack.
+status -- Status inquiries.
+support -- Support facilities.
+text-user-interface -- TUI is the GDB text based interface.
+tracepoints -- Tracing of program execution without stopping the program.
+user-defined -- User-defined commands.
+
+Type "help" followed by a class name for a list of commands in that class.
+Type "help all" for the list of all commands.
+Type "help" followed by command name for full documentation.
+Type "apropos word" to search for commands related to "word".
+Type "apropos -v word" for full documentation of commands related to "word".
+Command name abbreviations are allowed if unambiguous.
+(gdb) aliases
+Undefined command: "aliases".  Try "help".
+(gdb) help stack
+Examining the stack.
+The stack is made up of stack frames.  Gdb assigns numbers to stack frames
+counting from zero for the innermost (currently executing) frame.
+
+At any time gdb identifies one frame as the "selected" frame.
+Variable lookups are done with respect to the selected frame.
+When the program being debugged stops, gdb selects the innermost frame.
+The commands below can be used to select other frames by number or address.
+
+List of commands:
+
+backtrace, where, 
+   bt -- Print backtrace of all stack frames, or innermost COUNT frames.
+down, dow, do -- Select and print stack frame called by this one.
+faas -- Apply a command to all frames (ignoring errors and empty output).
+frame, f -- Select and print a stack frame.
+frame address -- Select and print a stack frame by stack address.
+frame apply -- Apply a command to a number of frames.
+frame apply all -- Apply a command to all frames.
+frame apply level -- Apply a command to a list of frames.
+frame function -- Select and print a stack frame by function name.
+frame level -- Select and print a stack frame by level.
+frame view -- View a stack frame that might be outside the current backtrace.
+--Type <RET> for more, q to quit, c to continue without paging--q
+Quit
+(gdb) bt
+#0  0x000006c8 in main::__cortex_m_rt_main ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) generate-core-file 
+Saved corefile core.42000
+quit) 
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be detached.
+
+Quit anyway? (y or n) y
+Detaching from program: /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main, Remote target
+Ending remote debugging.
+[Inferior 1 (Remote target) detached]
+mbp % gdb
+GNU gdb (GDB) 11.1
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-apple-darwin20.6.0".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+(gdb) target extended-remote 3333
+3333: No such file or directory.
+(gdb) target remote 3333
+3333: No such file or directory.
+(gdb) target extended-remote localhost:3333
+Remote debugging using localhost:3333
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000006b0 in ?? ()
+(gdb) file /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main 
+A program is being debugged already.
+Are you sure you want to change the file? (y or n) y
+Reading symbols from /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main...
+(gdb) bt
+#0  0x000006b0 in main::__cortex_m_rt_main ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) generate-core-file 
+Saved corefile core.42000
+quit) 
+A debugging session is active.
+
+	Inferior 1 [Remote target] will be detached.
+
+Quit anyway? (y or n) y
+Detaching from program: /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main, Remote target
+[Inferior 1 (Remote target) detached]
+mbp % gdb
+GNU gdb (GDB) 11.1
+Copyright (C) 2021 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-apple-darwin20.6.0".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+(gdb) target extended-remote localhost:3333
+localhost:3333
+: cannot resolve name: nodename nor servname provided, or not known
+localhost:3333
+: No such file or directory.
+(gdb) target extended-remote localhost:3333
+Quit
+(gdb) target extended-remote localhost:3333
+localhost:3333
+: cannot resolve name: nodename nor servname provided, or not known
+localhost:3333
+: No such file or directory.
+(gdb) target extended-remote localhost:3333
+Remote debugging using localhost:3333
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000006e8 in ?? ()
+(gdb) file /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main 
+A program is being debugged already.
+Are you sure you want to change the file? (y or n) y
+Reading symbols from /Users/will/Documents/projects/vumeter/code/tube_board/target/thumbv6m-none-eabi/release/main...
+(gdb) generate-core-file 
+Saved corefile core.42000
+(gdb) bt
+#0  0x000006e8 in main::__cortex_m_rt_main ()
+#1  0x00001820 in atsamd_hal::common::gpio::Port::dirset0 ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) 
