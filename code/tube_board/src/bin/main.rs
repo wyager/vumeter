@@ -56,18 +56,18 @@ impl hw::DigitalOutput for PowerPin {
 struct PWMPins {
     pwm:Pwm0, _p1:Pin<PA04,AlternateF>, _p2:Pin<PA05,AlternateF>, _p3:Pin<PA08,AlternateE>, _p4:Pin<PA09,AlternateE>
 }
-//
-//impl hw::PWMx4 for PWMPins {
-//    fn get_max_duty(&self) -> u32 { self.pwm.get_max_duty() }
-//    fn set_duty(&mut self, pin : hw::PWMPin, duty : u32) {
-//        match pin {
-//            A => {self.pwm.set_duty(Channel::_1,duty)},
-//            B => {self.pwm.set_duty(Channel::_0,duty)},
-//            C => {self.pwm.set_duty(Channel::_2,duty)},
-//            D => {self.pwm.set_duty(Channel::_3,duty)}
-//        }
-//    }
-//}
+
+impl hw::PWMx4 for PWMPins {
+    fn get_max_duty(&self) -> u32 { self.pwm.get_max_duty() }
+    fn set_duty(&mut self, pin : hw::PWMPin, duty : u32) {
+        match pin {
+            A => {self.pwm.set_duty(Channel::_1,duty)},
+            B => {self.pwm.set_duty(Channel::_0,duty)},
+            C => {self.pwm.set_duty(Channel::_2,duty)},
+            D => {self.pwm.set_duty(Channel::_3,duty)}
+        }
+    }
+}
 
 #[entry]
 fn main() -> ! {
@@ -134,53 +134,52 @@ fn main() -> ! {
 
 
 
-    //// Initialize HV controller and activate HV boost circuit
+    // Initialize HV controller and activate HV boost circuit
     let hv_pwr_en = PowerPin(pins.d13.into_push_pull_output());
-    //
-    //let mut state = hw::State::new(hv_pwr_en,pwm);
+    let mut state = hw::State::new(hv_pwr_en,pwm);
 
 
-    //use hw::Event::*;
+    use hw::Event::*;
 
-    //
+    
 
-    //// Forwarding buffers. If there's a message intended for another board,
-    //// we dump its contents in here and send it as the opportunity arises.
-    //let mut u1_buf = [0;64];
-    //let mut u1_buf = RingBuf::new(&mut u1_buf);
-    //let mut u2_buf = [0;64];
-    //let mut u2_buf = RingBuf::new(&mut u2_buf);
+    // Forwarding buffers. If there's a message intended for another board,
+    // we dump its contents in here and send it as the opportunity arises.
+    let mut u1_buf = [0;64];
+    let mut u1_buf = RingBuf::new(&mut u1_buf);
+    let mut u2_buf = [0;64];
+    let mut u2_buf = RingBuf::new(&mut u2_buf);
 
-    //
-    //// Give secondary cathodes time to fire
-    //for _ in 0..=hw::ENERGIZE_TICKS {
-    //    block!(timer.wait()).unwrap();
-    //    state.update(TimerFired, &mut u1_buf, &mut u2_buf);
-    //};
+    
+    // Give secondary cathodes time to fire
+    for _ in 0..=hw::ENERGIZE_TICKS {
+        block!(timer.wait()).unwrap();
+        state.update(TimerFired, &mut u1_buf, &mut u2_buf);
+    };
 
-    //// Display startup animation
-    //state.display_startup_pattern(&mut || delay.delay_ms(1u8));
-    //
-    //
-    //loop {
-    //    // If there's anything in the forward buffers, dump as much as we can to the UART.
-    //    while let Some(()) = u1_buf.with_front(|byte| u1.write(byte).ok()) {}
-    //    while let Some(()) = u2_buf.with_front(|byte| u2.write(byte).ok()) {}
+    // Display startup animation
+    state.display_startup_pattern(&mut || delay.delay_ms(1u8));
+    
+    
+    loop {
+        // If there's anything in the forward buffers, dump as much as we can to the UART.
+        while let Some(()) = u1_buf.with_front(|byte| u1.write(byte).ok()) {}
+        while let Some(()) = u2_buf.with_front(|byte| u2.write(byte).ok()) {}
 
-    //    // Read a byte from either serial port
-    //    let rx1 = u1.read().ok().map(Rx1);
-    //    let rx2 = u2.read().ok().map(Rx2);
-    //    // See if the timer fired
-    //    let tmr = timer.wait().ok().map(|()| TimerFired);
-    //    
-    //    if rx1.is_none() && rx2.is_none() && tmr.is_none() {
-    //        // wfi() // Doesn't seme to work properly on this board.
-    //    } else {
-    //        for evt in rx1.into_iter().chain(rx2.into_iter()).chain(tmr.into_iter()) {
-    //            state.update(evt, &mut u1_buf, &mut u2_buf);
-    //        }
-    //    }
-    //}
+        // Read a byte from either serial port
+        let rx1 = u1.read().ok().map(Rx1);
+        let rx2 = u2.read().ok().map(Rx2);
+        // See if the timer fired
+        let tmr = timer.wait().ok().map(|()| TimerFired);
+        
+        if rx1.is_none() && rx2.is_none() && tmr.is_none() {
+            // wfi() // Doesn't seme to work properly on this board.
+        } else {
+            for evt in rx1.into_iter().chain(rx2.into_iter()).chain(tmr.into_iter()) {
+                state.update(evt, &mut u1_buf, &mut u2_buf);
+            }
+        }
+    }
 
     loop {}
 }
