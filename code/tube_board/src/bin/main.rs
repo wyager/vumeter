@@ -25,9 +25,12 @@ use atsamd_hal::gpio::{Output,PushPull};//Pa2,Pa4,Pa5,Pa8,Pa9,PfF,PfE};
 use atsamd_hal::pwm::{Channel,Pwm0};
 use atsamd_hal::time::{Hertz,KiloHertz};
 use atsamd_hal::delay::Delay;
-use atsamd_hal::gpio::{AlternateE, AlternateF};
-use atsamd_hal::gpio::pin::{PA04, PA05, PA08, PA09};
+use atsamd_hal::gpio::{AlternateE, AlternateF, AlternateC};
+use atsamd_hal::gpio::pin::{PA04, PA05, PA08, PA09, PA24, PA25};
 use atsamd_hal::gpio::Pin;
+use atsamd_hal::sercom::uart as uart;
+use atsamd_hal::sercom::uart::BaudMode;
+use atsamd_hal::sercom::uart::Oversampling;
 
 use vu::tube_hw as hw;
 
@@ -98,14 +101,20 @@ fn main() -> ! {
 
     let pwm = PWMPins{pwm,_p1:p1,_p2:p2,_p3:p3,_p4:p4};
 
-    //// Initialize both left and right UARTs
-    //let gclk2 = clocks.get_gclk(GEN_A::GCLK2).expect("Could not get clock 2");
-    //let mut u1 = { 
-    //    let tx1: Sercom1Pad2<_> = parts.pa24.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
-    //    let rx1: Sercom1Pad3<_> = parts.pa25.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
-    //    let uart_clk = clocks.sercom1_core(&gclk2).expect("Could not configure sercom1 clock");
-    //    UART1::new(&uart_clk,460800u32.hz(),peripherals.SERCOM1,&mut peripherals.PM,(rx1, tx1))
-    //};
+    // Initialize both left and right UARTs
+    let gclk2 = clocks.get_gclk(GEN_A::GCLK2).expect("Could not get clock 2");
+    let mut u1 = { 
+        //let tx1: Sercom1Pad2<_> = parts.pa24.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
+        let tx1 : Pin<PA24, AlternateC> = pins.d9.into();
+        //let rx1: Sercom1Pad3<_> = parts.pa25.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
+        let rx1 : Pin<PA25, AlternateC> = pins.d10.into();
+        let uart_clk = clocks.sercom1_core(&gclk2).expect("Could not configure sercom1 clock");
+        let pads = uart::Pads::<Sercom1>::default().rx(rx1).tx(tx1);
+        //UART1::new(&uart_clk,Hertz(460800),peripherals.SERCOM1,&mut peripherals.PM,(rx1, tx1))
+        let config = uart::Config::new(&peripherals.PM, peripherals.SERCOM1, pads, uart_clk.freq());
+        let config = config.baud(Hertz(460800), BaudMode::Fractional(Oversampling::Bits16));
+        config.enable()
+    };
 
     //let mut u2 = { 
     //    let tx2: Sercom0Pad0<_> = parts.pa14.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
