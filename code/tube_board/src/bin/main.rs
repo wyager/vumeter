@@ -26,11 +26,12 @@ use atsamd_hal::pwm::{Channel,Pwm0};
 use atsamd_hal::time::{Hertz,KiloHertz};
 use atsamd_hal::delay::Delay;
 use atsamd_hal::gpio::{AlternateE, AlternateF, AlternateC};
-use atsamd_hal::gpio::pin::{PA04, PA05, PA08, PA09, PA24, PA25};
+use atsamd_hal::gpio::pin::{PA02, PA04, PA05, PA08, PA09, PA14, PA15, PA24, PA25};
 use atsamd_hal::gpio::Pin;
 use atsamd_hal::sercom::uart as uart;
 use atsamd_hal::sercom::uart::BaudMode;
 use atsamd_hal::sercom::uart::Oversampling;
+use atsamd_hal::gpio::PushPullOutput;
 
 use vu::tube_hw as hw;
 
@@ -43,14 +44,15 @@ use cortex_m_rt::entry;
 use biquad::frequency::ToHertz;
 
 
-//struct PowerPin(Pa2<Output<PushPull>>);
-//
-//impl hw::DigitalOutput for PowerPin {
-//    fn set(&mut self, on : bool) {
-//        if on {self.0.set_high().unwrap()} else {self.0.set_low().unwrap()}
-//    }
-//}
-//
+
+struct PowerPin(Pin<PA02, PushPullOutput>);
+
+impl hw::DigitalOutput for PowerPin {
+    fn set(&mut self, on : bool) {
+        if on {self.0.set_high().unwrap()} else {self.0.set_low().unwrap()}
+    }
+}
+
 struct PWMPins {
     pwm:Pwm0, _p1:Pin<PA04,AlternateF>, _p2:Pin<PA05,AlternateF>, _p3:Pin<PA08,AlternateE>, _p4:Pin<PA09,AlternateE>
 }
@@ -116,17 +118,24 @@ fn main() -> ! {
         config.enable()
     };
 
-    //let mut u2 = { 
-    //    let tx2: Sercom0Pad0<_> = parts.pa14.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
-    //    let rx2: Sercom0Pad1<_> = parts.pa15.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
-    //    let uart_clk = clocks.sercom0_core(&gclk2).expect("Could not configure sercom0 clock");
-    //    UART0::new(&uart_clk,460800u32.hz(),peripherals.SERCOM0,&mut peripherals.PM,(rx2, tx2))
-    //};
+    let mut u2 = { 
+        // let tx2: Sercom0Pad0<_> = parts.pa14.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
+        // let rx2: Sercom0Pad1<_> = parts.pa15.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
+        // let uart_clk = clocks.sercom0_core(&gclk2).expect("Could not configure sercom0 clock");
+        // UART0::new(&uart_clk,460800u32.hz(),peripherals.SERCOM0,&mut peripherals.PM,(rx2, tx2))
+        let tx2 : Pin<PA14, AlternateC> = pins.d4.into();
+        let rx2 : Pin<PA15, AlternateC> = pins.d5.into();
+        let uart_clk = clocks.sercom0_core(&gclk2).expect("Could not configure sercom1 clock");
+        let pads = uart::Pads::<Sercom0>::default().rx(rx2).tx(tx2);
+        let config = uart::Config::new(&peripherals.PM, peripherals.SERCOM0, pads, uart_clk.freq());
+        let config = config.baud(Hertz(460800), BaudMode::Fractional(Oversampling::Bits16));
+        config.enable()
+    };
 
-    //
+
 
     //// Initialize HV controller and activate HV boost circuit
-    //let hv_pwr_en = PowerPin(parts.pa2.into_push_pull_output(&mut parts.port));
+    let hv_pwr_en = PowerPin(pins.d13.into_push_pull_output());
     //
     //let mut state = hw::State::new(hv_pwr_en,pwm);
 
