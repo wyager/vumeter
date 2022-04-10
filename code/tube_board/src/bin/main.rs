@@ -20,8 +20,8 @@ use samd11_bare::pac::gclk::genctrl::SRC_A;
 use atsamd_hal::sercom::{Sercom0, Sercom1};//{PadPin, Sercom0Pad0, Sercom0Pad1, Sercom1Pad2, Sercom1Pad3, UART0, UART1};
 use embedded_hal::serial::{Read,Write};
 use atsamd_hal::timer::TimerCounter;
-use cortex_m::asm::wfi;
-use atsamd_hal::gpio::{Output,PushPull};//Pa2,Pa4,Pa5,Pa8,Pa9,PfF,PfE};
+// TODO: Figure out if one of the 2022 crates has wfi
+//use cortex_m::asm::wfi;
 use atsamd_hal::pwm::{Channel,Pwm0};
 use atsamd_hal::time::{Hertz,KiloHertz};
 use atsamd_hal::delay::Delay;
@@ -35,15 +35,10 @@ use atsamd_hal::gpio::PushPullOutput;
 
 use vu::tube_hw as hw;
 
-use vu::protocol::{ParseState,Brightness};
 use vu::shared::{RingBuf};
 use hw::PWMPin::{A,B,C,D};
 
-use cortex_m_rt::entry;
-
-use biquad::frequency::ToHertz;
-
-
+use samd11_bare::entry;
 
 struct PowerPin(Pin<PA02, PushPullOutput>);
 
@@ -94,8 +89,8 @@ fn main() -> ! {
     let tcc0clk = clocks.tcc0(&gclk0).unwrap();
     let pwm = Pwm0::new(&tcc0clk, KiloHertz(10), peripherals.TCC0, &mut peripherals.PM);
 
-    let mut pins = samd11_bare::Pins::new(peripherals.PORT);
-    //// Enable PWM pins
+    let pins = samd11_bare::Pins::new(peripherals.PORT);
+    // Enable PWM pins
     let p1 : Pin<PA04, AlternateF> = pins.d14.into_mode(); // parts.pa4.into_function_f(&mut parts.port);
     let p2 : Pin<PA05, AlternateF> = pins.d1.into_mode(); //parts.pa5.into_function_f(&mut parts.port);
     let p3 : Pin<PA08, AlternateE> = pins.d2.into_mode(); //parts.pa8.into_function_e(&mut parts.port);
@@ -181,7 +176,6 @@ fn main() -> ! {
         }
     }
 
-    loop {}
 }
 
 
