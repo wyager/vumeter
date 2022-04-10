@@ -6,7 +6,7 @@ extern crate cortex_m_rt;
 extern crate panic_halt;
 extern crate samd11_bare as hal;
 extern crate vumeter_lib as vu;
-extern crate atsamd11c14a;
+extern crate atsamd11c;
 
 #[macro_use(block)]
 extern crate nb;
@@ -24,6 +24,7 @@ use hal::timer::TimerCounter;
 use cortex_m::asm::wfi;
 use atsamd_hal::gpio::{Output,PushPull,Pa2,Pa4,Pa5,Pa8,Pa9,PfF,PfE};
 use atsamd_hal::pwm::{Channel,Pwm0};
+use atsamd_hal::time::U32Ext;
 
 use vu::tube_hw as hw;
 
@@ -32,6 +33,9 @@ use vu::shared::{RingBuf};
 use hw::PWMPin::{A,B,C,D};
 
 use cortex_m_rt::entry;
+
+use biquad::frequency::ToHertz;
+
 
 struct PowerPin(Pa2<Output<PushPull>>);
 
@@ -80,7 +84,7 @@ fn main() -> ! {
 
     // Initialize TCC0 PWM subsystem
     let tcc0clk = clocks.tcc0(&gclk0).unwrap();
-    let pwm = Pwm0::new(&tcc0clk, 10.khz(), peripherals.TCC0, &mut peripherals.PM);
+    let pwm = Pwm0::new(&tcc0clk, 10u32.khz(), peripherals.TCC0, &mut peripherals.PM);
 
     let mut parts = peripherals.PORT.split();
     // Enable PWM pins
@@ -97,14 +101,14 @@ fn main() -> ! {
         let tx1: Sercom1Pad2<_> = parts.pa24.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
         let rx1: Sercom1Pad3<_> = parts.pa25.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
         let uart_clk = clocks.sercom1_core(&gclk2).expect("Could not configure sercom1 clock");
-        UART1::new(&uart_clk,460800.hz(),peripherals.SERCOM1,&mut peripherals.PM,(rx1, tx1))
+        UART1::new(&uart_clk,460800u32.hz(),peripherals.SERCOM1,&mut peripherals.PM,(rx1, tx1))
     };
 
     let mut u2 = { 
         let tx2: Sercom0Pad0<_> = parts.pa14.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
         let rx2: Sercom0Pad1<_> = parts.pa15.into_pull_down_input(&mut parts.port).into_pad(&mut parts.port);
         let uart_clk = clocks.sercom0_core(&gclk2).expect("Could not configure sercom0 clock");
-        UART0::new(&uart_clk,460800.hz(),peripherals.SERCOM0,&mut peripherals.PM,(rx2, tx2))
+        UART0::new(&uart_clk,460800u32.hz(),peripherals.SERCOM0,&mut peripherals.PM,(rx2, tx2))
     };
 
     
