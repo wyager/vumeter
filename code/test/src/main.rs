@@ -317,7 +317,7 @@ fn vu_serial() {
     let start = std::time::Instant::now();
     let lo = 30.hz();
     let hi = 8000.hz();
-    const N_BANDS : usize = 8;
+    const N_BANDS : usize = 4;
     let update_rate = pkt::refresh_rate(N_BANDS).hz();
     println!("Refresh rate: {:?}",update_rate);
     // let params = bp::Params{lowest_freq:lo, highest_freq:hi, render_rate:update_rate, band_edge_multiplier:0.9, filter_q:3., percentile_ndb:0.7, ..bp::Params::default()};
@@ -700,8 +700,8 @@ fn main() {
     // test_bandpass_2();
     // test_bandpass_3();
     // test_bandpass_4();
-    vu_meter();
-    // vu_serial();
+    //vu_meter();
+    vu_serial();
     // vu_udp();
     // vu_meter_mic();
     // test_serial();

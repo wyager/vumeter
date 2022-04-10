@@ -56,8 +56,8 @@ impl Pkt {
         }
     }
     fn checksums(data:&[u8]) -> (u8,u8) {
-        let (sum, xor) = data.iter().fold((0b01010101, 0b00101010), |(sum,xor), b| {
-            (sum + b, xor ^ b)
+        let (sum, xor) = data.iter().fold((0b01010101u8, 0b00101010u8), |(sum,xor), b| {
+            (sum.overflowing_add(*b).0, xor ^ b)
         });
         let mask = 0b111_1111;
         (sum & mask, xor & mask)
