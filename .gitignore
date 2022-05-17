@@ -1,7 +1,6 @@
 *.DS_Store
 *fp-info-cache
 *Archive.zip
-*-cache.lib
 *.mp3
 *.wav
 *.step
