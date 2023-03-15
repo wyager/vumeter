@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="87.59760000000003mm" height="44.717600000000004mm" viewBox="0 0 87.59760000000003 44.717600000000004" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<g id="aud_base_outline" transform="translate(0.848800,3.858800) scale(1,-1)">
+<path id="aud_base_outline_w0000"  d="M 10.7475 3.0 L 21.465000000000003 3.0 L 21.465000000000003 0.0 L 21.485000000000003 0.0 L 32.222500000000004 0.0 L 32.222500000000004 3.0 L 42.94000000000001 3.0 L 42.94000000000001 0.0 L 42.960000000000015 0.0 L 53.69750000000002 0.0 L 53.69750000000002 3.0 L 64.41500000000002 3.0 L 64.41500000000002 0.0 L 64.43500000000002 0.0 L 75.17250000000001 0.0 L 75.17250000000001 3.0 L 85.89000000000001 3.0 L 85.89000000000001 0.0 L 85.89000000000003 -37.0 L 75.15250000000003 -37.0 L 75.15250000000003 -40.0 L 64.43500000000003 -40.0 L 64.43500000000003 -37.0 L 64.41500000000003 -37.0 L 53.67750000000004 -37.0 L 53.67750000000004 -40.0 L 42.960000000000036 -40.0 L 42.960000000000036 -37.0 L 42.94000000000003 -37.0 L 32.20250000000003 -37.0 L 32.20250000000003 -40.0 L 21.485000000000024 -40.0 L 21.485000000000024 -37.0 L 21.465000000000025 -37.0 L 10.727500000000024 -37.0 L 10.727500000000024 -40.0 L 0.01000000000002288 -40.0 L 0.01000000000002288 -37.0 L 0.01 0.0 L 10.7475 0.0 L 10.7475 3.0 " stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none;fill-rule: evenodd "/>
+<circle cx="18.2" cy="-5.0" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="18.2" cy="-32.0" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="67.7" cy="-5.0" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="67.7" cy="-32.0" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<path id="aud_base_outline_w0005"  d="M 4.999999999999999 -34.0 L 4.999999999999999 -31.0 L 8.2 -31.0 L 8.2 -34.0 L 4.999999999999999 -34.0 " stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none;fill-rule: evenodd "/>
+<path id="aud_base_outline_w0006"  d="M 4.999999999999999 -3.0 L 4.999999999999999 -6.0 L 8.2 -6.0 L 8.2 -3.0 L 4.999999999999999 -3.0 " stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none;fill-rule: evenodd "/>
+<path id="aud_base_outline_w0007"  d="M 80.9 -34.0 L 80.9 -31.0 L 77.7 -31.0 L 77.7 -34.0 L 80.9 -34.0 " stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none;fill-rule: evenodd "/>
+<path id="aud_base_outline_w0008"  d="M 80.9 -3.0 L 80.9 -6.0 L 77.7 -6.0 L 77.7 -3.0 L 80.9 -3.0 " stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none;fill-rule: evenodd "/>
+<circle cx="29.200000000000003" cy="-14.5" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="29.200000000000003" cy="-22.5" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="53.2" cy="-14.5" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="53.2" cy="-22.5" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<circle cx="41.2" cy="-18.5" r="1.35" stroke="#191919" stroke-width="0.35 px" style="stroke-width:0.35;stroke-miterlimit:4;stroke-dasharray:none;fill:none"/>
+<title>b'aud_base_outline'</title>
+</g>
+</svg>
