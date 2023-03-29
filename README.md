@@ -22,7 +22,7 @@ A full writeup is available [here](http://yager.io/vumeter/vu.html).
 
 ## Building the code
 
-Go into `code/audio_board` and `code/tube_board` and run `cargo build`.
+Go into `code/audio_board` and `code/tube_board` and run `cargo build --release`. (Without `--release`, the binaries may be too large.)
 
 ## Uploading the code
 
