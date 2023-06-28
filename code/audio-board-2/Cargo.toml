@@ -1,0 +1,27 @@
+[package]
+name = "audio-board-2"
+version = "0.1.0"
+authors = ["William Yager <will@yager.io>"]
+edition = "2021"
+
+[dependencies]
+cortex-m = "0.7"
+embedded-hal = "0.2"
+# Remove me if you don't want logging.
+log = "0.4"
+teensy4-panic = "0.2"
+
+[dependencies.teensy4-bsp]
+version = "0.4"
+features = [
+    # Use the BSP's runtime. This lets you write your
+    # `main()` function.
+    "rt",
+    # Remove me if you don't want logging.
+    "usb-logging",
+]
+
+# Don't optimize build dependencies, like proc macros.
+# Helps with build times.
+[profile.release.build-override]
+opt-level = 0
