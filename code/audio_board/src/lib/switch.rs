@@ -11,6 +11,8 @@ extern "C" {
     fn switch_init();
     pub fn set_pwr_en(_ : bool);
     pub fn pwr_init();
+    pub fn set_led_en(_ : bool);
+    pub fn led_init();
     fn set_sleep_pin(_ : bool);
     fn sleep_pin_init();
 }
@@ -48,6 +50,24 @@ impl Pwr {
     }
     pub fn set(&mut self, on : bool) {
         unsafe{set_pwr_en(on)};
+    }
+}
+
+pub struct Led{}
+
+#[no_mangle]
+static mut LED_TAKEN: bool = false;
+impl Led {
+    pub fn initialize() -> Option<Led> {
+        unsafe {
+            if LED_TAKEN  {return None};
+            LED_TAKEN = true;
+            led_init();   
+        }
+        Some(Led{})
+    }
+    pub fn set(&mut self, on : bool) {
+        unsafe{set_led_en(on)};
     }
 }
 

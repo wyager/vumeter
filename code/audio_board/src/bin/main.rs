@@ -1,4 +1,3 @@
-
 #![no_std]
 #![no_main]
 
@@ -66,13 +65,14 @@ fn PIT() {
 fn main() -> ! {
     // WARNING: Must leave this uncommented
     let mut peripherals = bsp::Peripherals::take().unwrap();
-
+    let mut led = switch::Led::initialize().unwrap();
     let mut spdif = spdif::SPDIF::initialize().unwrap();
     let mut uart = uart::UART::initialize((460800. *  600. / 528.) as u32).unwrap();
     let mut switch = switch::Switch::initialize().unwrap();
     let mut pwr = switch::Pwr::initialize().unwrap();
     let mut sleep_pin = switch::SleepPin::initialize().unwrap();
 
+    led.set(true);
     pwr.set(true);
 
     // Enabling logging increases current usage by about 10mA at 528MHz
@@ -111,6 +111,9 @@ fn main() -> ! {
         let timer = timer.elapsed().map(Event::Timer);
         let uart = uart.read().ok().map(Event::Rx);
         
+        if !timer.is_none() {
+
+        }
         if switch.is_none() && spdif.is_none() && timer.is_none() && uart.is_none() {
             sleep_pin.set(true);
             wfi();

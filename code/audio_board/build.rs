@@ -42,6 +42,7 @@ fn main() {
        .file("src/lib/c/spdif.c")
        .file("src/lib/c/timer.c")
        .file("src/lib/c/switch.c")
+       .file("src/lib/c/led.c")
        .file("src/lib/c/uart.c");
     builder.compiler(CC);
     builder.archiver(AR);
