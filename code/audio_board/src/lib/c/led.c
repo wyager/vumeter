@@ -11,6 +11,6 @@ void set_led_en(bool on) {
 }
 
 void led_init() {
-    pinMode(13, INPUT_PULLUP);
+    pinMode(13, 1);
 }
 

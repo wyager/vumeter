@@ -66,13 +66,13 @@ fn main() -> ! {
     // WARNING: Must leave this uncommented
     let mut peripherals = bsp::Peripherals::take().unwrap();
     let mut led = switch::Led::initialize().unwrap();
+    led.set(true);
     let mut spdif = spdif::SPDIF::initialize().unwrap();
     let mut uart = uart::UART::initialize((460800. *  600. / 528.) as u32).unwrap();
     let mut switch = switch::Switch::initialize().unwrap();
     let mut pwr = switch::Pwr::initialize().unwrap();
     let mut sleep_pin = switch::SleepPin::initialize().unwrap();
 
-    led.set(true);
     pwr.set(true);
 
     // Enabling logging increases current usage by about 10mA at 528MHz
