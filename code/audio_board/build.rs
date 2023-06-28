@@ -53,6 +53,7 @@ fn main() {
     builder.compile("libteensy");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/lib/c/spdif.c");
+    println!("cargo:rerun-if-changed=src/lib/c/led.c");
     println!("cargo:rerun-if-changed=src/lib/c/uart.c");
     println!("cargo:rerun-if-changed=src/lib/c/timer.c");
     println!("cargo:rerun-if-changed=src/lib/c/switch.c");
