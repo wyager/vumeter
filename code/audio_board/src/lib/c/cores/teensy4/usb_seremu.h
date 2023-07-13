@@ -51,6 +51,8 @@ int usb_seremu_write(const void *buffer, uint32_t size);
 int usb_seremu_write_buffer_free(void);
 void usb_seremu_flush_output(void);
 extern volatile uint8_t usb_configuration;
+extern volatile uint8_t usb_seremu_online;
+extern void serialEvent(void) __attribute__((weak));
 #ifdef __cplusplus
 }
 #endif
@@ -62,7 +64,21 @@ class usb_seremu_class : public Stream
 {
 public:
 	constexpr usb_seremu_class() {}
-        void begin(long) { /* TODO: call a function that tries to wait for enumeration */ };
+        void begin(long) {
+		uint32_t millis_begin = systick_millis_count;
+		while (!(*this)) {
+			uint32_t elapsed = systick_millis_count - millis_begin;
+			if (usb_configuration) {
+				// Wait up to 2 seconds for Arduino Serial Monitor
+				if (elapsed > 2000) break;
+			} else {
+				// But wait only 3/4 second if there is no sign the
+				// USB host has begun the USB enumeration process.
+				if (elapsed > 750) break;
+			}
+			yield();
+		}
+	}
         void end() { /* TODO: flush output and shut down USB port */ };
         virtual int available() { return usb_seremu_available(); }
         virtual int read() { return usb_seremu_getchar(); }
@@ -83,10 +99,9 @@ public:
         uint8_t numbits(void) { return 8; }
         uint8_t dtr(void) { return 1; }
         uint8_t rts(void) { return 1; }
-        operator bool() { return usb_configuration; }
+        operator bool() { yield(); return usb_configuration && usb_seremu_online; }
 };
 extern usb_seremu_class Serial;
-extern void serialEvent(void);
 #endif // __cplusplus
 
 
@@ -123,7 +138,6 @@ public:
 };
 
 extern usb_seremu_class Serial;
-extern void serialEvent(void);
 #endif // __cplusplus
 #endif
 

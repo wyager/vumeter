@@ -30,7 +30,7 @@
 
 #include "imxrt.h"
 #include "debug/printf.h"
-
+#include <sys/time.h> // for struct timeval
 
 unsigned long rtc_get(void)
 {
@@ -49,14 +49,42 @@ unsigned long rtc_get(void)
 
 void rtc_set(unsigned long t)
 {
-	SNVS_HPCR &= ~SNVS_HPCR_RTC_EN;
-	while (SNVS_HPCR & SNVS_HPCR_RTC_EN) ; // wait
-	SNVS_HPRTCLR = t << 15;
-	SNVS_HPRTCMR = t >> 17;
-	SNVS_HPCR |= SNVS_HPCR_RTC_EN;
+	// stop the RTC
+	SNVS_HPCR &= ~(SNVS_HPCR_RTC_EN | SNVS_HPCR_HP_TS);
+	while (SNVS_HPCR & SNVS_HPCR_RTC_EN); // wait
+	// stop the SRTC
+	SNVS_LPCR &= ~SNVS_LPCR_SRTC_ENV;
+	while (SNVS_LPCR & SNVS_LPCR_SRTC_ENV); // wait
+	// set the SRTC
+	SNVS_LPSRTCLR = t << 15;
+	SNVS_LPSRTCMR = t >> 17;
+	// start the SRTC
+	SNVS_LPCR |= SNVS_LPCR_SRTC_ENV;
+	while (!(SNVS_LPCR & SNVS_LPCR_SRTC_ENV)); // wait
+	// start the RTC and sync it to the SRTC
+	SNVS_HPCR |= SNVS_HPCR_RTC_EN | SNVS_HPCR_HP_TS;
 }
 
-void rtc_compensate(int adjust)
+void rtc_compensate(int adjust __attribute__((unused)))
 {
 }
 
+// https://github.com/arduino-libraries/ArduinoBearSSL/issues/54
+// https://forum.pjrc.com/threads/70966
+__attribute__((weak))
+int _gettimeofday(struct timeval *tv, void *ignore __attribute__((unused)))
+{
+	uint32_t hi1 = SNVS_HPRTCMR;
+	uint32_t lo1 = SNVS_HPRTCLR;
+	while (1) {
+		uint32_t hi2 = SNVS_HPRTCMR;  // ref manual 20.3.3.1.3 page 1231
+		uint32_t lo2 = SNVS_HPRTCLR;
+		if (lo1 == lo2 && hi1 == hi2) {
+			tv->tv_sec = (hi2 << 17) | (lo2 >> 15);
+			tv->tv_usec = ((lo2 & 0x7FFF) * 15625) >> 9;
+			return 0;
+		}
+		hi1 = hi2;
+		lo1 = lo2;
+	}
+}

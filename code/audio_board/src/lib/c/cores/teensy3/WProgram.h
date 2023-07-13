@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 // some libraries and sketches depend on this
 // AVR stuff, assuming Arduino.h or WProgram.h
@@ -50,8 +51,11 @@
 
 #ifdef __cplusplus
 
+#include "inplace_function.h"
 #include "avr_emulation.h"
 #include "usb_serial.h"
+#include "usb_serial2.h"
+#include "usb_serial3.h"
 #include "usb_seremu.h"
 #include "usb_keyboard.h"
 #include "usb_mouse.h"
@@ -68,6 +72,7 @@
 #include "WString.h"
 #include "elapsedMillis.h"
 #include "IntervalTimer.h"
+#include "CrashReport.h"
 
 uint16_t makeWord(uint16_t w);
 uint16_t makeWord(byte h, byte l);

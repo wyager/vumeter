@@ -30,7 +30,7 @@
 #include "input_i2s2.h"
 #include "output_i2s2.h"
 
-static uint32_t i2s2_rx_buffer[AUDIO_BLOCK_SAMPLES];
+DMAMEM __attribute__((aligned(32))) static uint32_t i2s2_rx_buffer[AUDIO_BLOCK_SAMPLES];
 audio_block_t * AudioInputI2S2::block_left = NULL;
 audio_block_t * AudioInputI2S2::block_right = NULL;
 uint16_t AudioInputI2S2::block_offset = 0;
@@ -103,11 +103,9 @@ void AudioInputI2S2::isr(void)
 			dest_right = &(right->data[offset]);
 			AudioInputI2S2::block_offset = offset + AUDIO_BLOCK_SAMPLES/2;
 
+			arm_dcache_delete((void*)src, sizeof(i2s2_rx_buffer) / 2);
+
 			do {
-				//Serial.println(*src);
-				//n = *src++;
-				//*dest_left++ = (int16_t)n;
-				//*dest_right++ = (int16_t)(n >> 16);
 				*dest_left++ = *src++;
 				*dest_right++ = *src++;
 			} while (src < end);
@@ -172,7 +170,7 @@ void AudioInputI2S2::update(void)
 
 /******************************************************************/
 
-#if 0
+
 void AudioInputI2S2slave::begin(void)
 {
 	dma.begin(true); // Allocate the DMA channel first
@@ -180,12 +178,13 @@ void AudioInputI2S2slave::begin(void)
 	//block_left_1st = NULL;
 	//block_right_1st = NULL;
 
+	CORE_PIN5_CONFIG = 2;  //EMC_08, 2=SAI2_RX_DATA, page 434
+	IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0; // 0=GPIO_EMC_08_ALT2, page 876
+
 	AudioOutputI2S2slave::config_i2s();
 
-	CORE_PIN33_CONFIG = 2;  //2:RX_DATA0
-	IOMUXC_SAI2_RX_DATA0_SELECT_INPUT = 0;
 
-	dma.TCD->SADDR = (void *)((uint32_t)&I2S2_RDR0 + 2);
+	dma.TCD->SADDR = (void *)((uint32_t)&I2S2_RDR0+2);
 	dma.TCD->SOFF = 0;
 	dma.TCD->ATTR = DMA_TCD_ATTR_SSIZE(1) | DMA_TCD_ATTR_DSIZE(1);
 	dma.TCD->NBYTES_MLNO = 2;
@@ -196,15 +195,14 @@ void AudioInputI2S2slave::begin(void)
 	dma.TCD->DLASTSGA = -sizeof(i2s2_rx_buffer);
 	dma.TCD->BITER_ELINKNO = sizeof(i2s2_rx_buffer) / 2;
 	dma.TCD->CSR = DMA_TCD_CSR_INTHALF | DMA_TCD_CSR_INTMAJOR;
-
 	dma.triggerAtHardwareEvent(DMAMUX_SOURCE_SAI2_RX);
-	update_responsibility = update_setup();
 	dma.enable();
-
-	I2S2_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR;
-	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // TX clock enable, because sync'd to TX
+	
+	
+	I2S2_RCSR = I2S_RCSR_RE | I2S_RCSR_BCE | I2S_RCSR_FRDE | I2S_RCSR_FR; // page 2099
+	I2S2_TCSR |= I2S_TCSR_TE | I2S_TCSR_BCE; // page 2087
+	update_responsibility = update_setup();
 	dma.attachInterrupt(isr);
 
 }
-#endif
 #endif

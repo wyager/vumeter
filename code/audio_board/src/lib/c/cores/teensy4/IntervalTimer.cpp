@@ -34,11 +34,11 @@
 static void pit_isr(void);
 
 #define NUM_CHANNELS 4
-static void (*funct_table[4])(void) __attribute((aligned(32))) = {nullptr, nullptr, nullptr, nullptr};
+static IntervalTimer::callback_t funct_table[4] __attribute((aligned(32))) = {nullptr, nullptr, nullptr, nullptr};
 uint8_t IntervalTimer::nvic_priorites[4] = {255, 255, 255, 255};
 
 
-bool IntervalTimer::beginCycles(void (*funct)(), uint32_t cycles)
+bool IntervalTimer::beginCycles(callback_t funct, uint32_t cycles)
 {
 	printf("beginCycles %u\n", cycles);
 	if (channel) {
@@ -80,6 +80,7 @@ void IntervalTimer::end() {
 		// TODO: disable IRQ_PIT, but only if all instances ended
 		funct_table[index] = nullptr;
 		channel->TCTRL = 0;
+		channel->TFLG = 1;
 		nvic_priorites[index] = 255;
 		uint8_t top_priority = 255;
 		for (int i=0; i < NUM_CHANNELS; i++) {

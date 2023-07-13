@@ -40,6 +40,7 @@
 
 static volatile uint8_t tx_noautoflush=0;
 extern volatile uint8_t usb_high_speed;
+volatile uint8_t usb_seremu_online=0;
 
 // TODO: should be 2 different timeouts, high speed (480) vs full speed (12)
 #define TRANSMIT_FLUSH_TIMEOUT  75   /* in microseconds */
@@ -82,6 +83,8 @@ void usb_seremu_configure(void)
 	int i;
 	for (i=0; i < RX_NUM; i++) rx_queue_transfer(i);
 	timer_config(usb_seremu_flush_callback, TRANSMIT_FLUSH_TIMEOUT);
+	// weak serialEvent will be NULL unless user's program defines serialEvent()
+	if (serialEvent) yield_active_check_flags |= YIELD_CHECK_USB_SERIAL;
 }
 
 
@@ -154,7 +157,10 @@ int usb_seremu_peekchar(void)
 int usb_seremu_available(void)
 {
 	uint32_t tail = rx_tail;
-	if (tail == rx_head) return 0;
+	if (tail == rx_head) {
+		yield();
+		return 0;
+	}
 	// TODO: how much is actually available?
 	return 1;
 }
@@ -245,6 +251,7 @@ int usb_seremu_write(const void *buffer, uint32_t size)
 
 	if (!usb_configuration) return 0;
 	while (size > 0) {
+		tx_noautoflush = 1;
 		transfer_t *xfer = tx_transfer + tx_head;
 		int waiting=0;
 		uint32_t wait_begin_at=0;
@@ -260,6 +267,7 @@ int usb_seremu_write(const void *buffer, uint32_t size)
 				transmit_previous_timeout = 0;
 				break;
 			}
+			tx_noautoflush = 0;
 			if (!waiting) {
 				wait_begin_at = systick_millis_count;
 				waiting = 1;
@@ -289,6 +297,7 @@ int usb_seremu_write(const void *buffer, uint32_t size)
 			size = 0;
 			timer_start_oneshot();
 		}
+		tx_noautoflush = 0;
 	}
 	return sent;
 }
@@ -305,12 +314,14 @@ void usb_seremu_flush_output(void)
 	tx_noautoflush = 1;
 	tx_zero_pad();
 	tx_queue_transfer();
+	timer_stop();
 	tx_noautoflush = 0;
 }
 
 static void usb_seremu_flush_callback(void)
 {
 	if (tx_noautoflush) return;
+	if (tx_available == 0 || tx_available >= SEREMU_TX_SIZE) return;
 	tx_zero_pad();
 	tx_queue_transfer();
 }

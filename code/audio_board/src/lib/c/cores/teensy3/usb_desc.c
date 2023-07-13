@@ -394,6 +394,11 @@ static uint8_t multitouch_report_desc[] = {
         0x95, 0x01,                     //   Report Count (1)
         0x09, 0x56,                     //   Usage (Scan Time)
         0x81, 0x02,                     //   Input (variable,absolute)
+        0x09, 0x54,                     //   USAGE (Contact count)
+        0x25, 0x7f,                     //   LOGICAL_MAXIMUM (127) 
+        0x95, 0x01,                     //   REPORT_COUNT (1)
+        0x75, 0x08,                     //   REPORT_SIZE (8)    
+        0x81, 0x02,                     //   INPUT (Data,Var,Abs)
         0x05, 0x0D,                     //   Usage Page (Digitizers)
         0x09, 0x55,                     //   Usage (Contact Count Maximum)
         0x25, MULTITOUCH_FINGERS,       //   Logical Maximum (10)
@@ -484,7 +489,21 @@ static uint8_t flightsim_report_desc[] = {
 #define CDC_DATA_INTERFACE_DESC_SIZE	0
 #endif
 
-#define MIDI_INTERFACE_DESC_POS		CDC_DATA_INTERFACE_DESC_POS+CDC_DATA_INTERFACE_DESC_SIZE
+#define CDC2_DATA_INTERFACE_DESC_POS	CDC_DATA_INTERFACE_DESC_POS+CDC_DATA_INTERFACE_DESC_SIZE
+#ifdef  CDC2_DATA_INTERFACE
+#define CDC2_DATA_INTERFACE_DESC_SIZE	8 + 9+5+5+4+5+7+9+7+7
+#else
+#define CDC2_DATA_INTERFACE_DESC_SIZE	0
+#endif
+
+#define CDC3_DATA_INTERFACE_DESC_POS	CDC2_DATA_INTERFACE_DESC_POS+CDC2_DATA_INTERFACE_DESC_SIZE
+#ifdef  CDC3_DATA_INTERFACE
+#define CDC3_DATA_INTERFACE_DESC_SIZE	8 + 9+5+5+4+5+7+9+7+7
+#else
+#define CDC3_DATA_INTERFACE_DESC_SIZE	0
+#endif
+
+#define MIDI_INTERFACE_DESC_POS		CDC3_DATA_INTERFACE_DESC_POS+CDC3_DATA_INTERFACE_DESC_SIZE
 #ifdef  MIDI_INTERFACE
   #if !defined(MIDI_NUM_CABLES) || MIDI_NUM_CABLES < 1 || MIDI_NUM_CABLES > 16
   #error "MIDI_NUM_CABLES must be defined between 1 to 16"
@@ -581,7 +600,7 @@ static uint8_t flightsim_report_desc[] = {
 // **************************************************************
 
 // USB Configuration Descriptor.  This huge descriptor tells all
-// of the devices capbilities.
+// of the devices capabilities.
 static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
         9,                                      // bLength;
@@ -672,6 +691,156 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         0,                                      // bInterval
 #endif // CDC_DATA_INTERFACE
 
+#ifdef CDC2_DATA_INTERFACE
+        // interface association descriptor, USB ECN, Table 9-Z
+        8,                                      // bLength
+        11,                                     // bDescriptorType
+        CDC2_STATUS_INTERFACE,                  // bFirstInterface
+        2,                                      // bInterfaceCount
+        0x02,                                   // bFunctionClass
+        0x02,                                   // bFunctionSubClass
+        0x01,                                   // bFunctionProtocol
+        0,                                      // iFunction
+        // interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
+        9,                                      // bLength
+        4,                                      // bDescriptorType
+        CDC2_STATUS_INTERFACE,			// bInterfaceNumber
+        0,                                      // bAlternateSetting
+        1,                                      // bNumEndpoints
+        0x02,                                   // bInterfaceClass
+        0x02,                                   // bInterfaceSubClass
+        0x01,                                   // bInterfaceProtocol
+        0,                                      // iInterface
+        // CDC Header Functional Descriptor, CDC Spec 5.2.3.1, Table 26
+        5,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x00,                                   // bDescriptorSubtype
+        0x10, 0x01,                             // bcdCDC
+        // Call Management Functional Descriptor, CDC Spec 5.2.3.2, Table 27
+        5,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x01,                                   // bDescriptorSubtype
+        0x01,                                   // bmCapabilities
+        1,                                      // bDataInterface
+        // Abstract Control Management Functional Descriptor, CDC Spec 5.2.3.3, Table 28
+        4,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x02,                                   // bDescriptorSubtype
+        0x06,                                   // bmCapabilities
+        // Union Functional Descriptor, CDC Spec 5.2.3.8, Table 33
+        5,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x06,                                   // bDescriptorSubtype
+        CDC2_STATUS_INTERFACE,                  // bMasterInterface
+        CDC2_DATA_INTERFACE,                    // bSlaveInterface0
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        7,                                      // bLength
+        5,                                      // bDescriptorType
+        CDC2_ACM_ENDPOINT | 0x80,               // bEndpointAddress
+        0x03,                                   // bmAttributes (0x03=intr)
+        CDC2_ACM_SIZE, 0,                       // wMaxPacketSize
+        64,                                     // bInterval
+        // interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
+        9,                                      // bLength
+        4,                                      // bDescriptorType
+        CDC2_DATA_INTERFACE,                    // bInterfaceNumber
+        0,                                      // bAlternateSetting
+        2,                                      // bNumEndpoints
+        0x0A,                                   // bInterfaceClass
+        0x00,                                   // bInterfaceSubClass
+        0x00,                                   // bInterfaceProtocol
+        0,                                      // iInterface
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        7,                                      // bLength
+        5,                                      // bDescriptorType
+        CDC2_RX_ENDPOINT,                       // bEndpointAddress
+        0x02,                                   // bmAttributes (0x02=bulk)
+        CDC2_RX_SIZE, 0,                        // wMaxPacketSize
+        0,                                      // bInterval
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        7,                                      // bLength
+        5,                                      // bDescriptorType
+        CDC2_TX_ENDPOINT | 0x80,                // bEndpointAddress
+        0x02,                                   // bmAttributes (0x02=bulk)
+        CDC2_TX_SIZE, 0,                        // wMaxPacketSize
+        0,                                      // bInterval
+#endif // CDC2_DATA_INTERFACE
+
+#ifdef CDC3_DATA_INTERFACE
+        // interface association descriptor, USB ECN, Table 9-Z
+        8,                                      // bLength
+        11,                                     // bDescriptorType
+        CDC3_STATUS_INTERFACE,                  // bFirstInterface
+        2,                                      // bInterfaceCount
+        0x02,                                   // bFunctionClass
+        0x02,                                   // bFunctionSubClass
+        0x01,                                   // bFunctionProtocol
+        0,                                      // iFunction
+        // interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
+        9,                                      // bLength
+        4,                                      // bDescriptorType
+        CDC3_STATUS_INTERFACE,			// bInterfaceNumber
+        0,                                      // bAlternateSetting
+        1,                                      // bNumEndpoints
+        0x02,                                   // bInterfaceClass
+        0x02,                                   // bInterfaceSubClass
+        0x01,                                   // bInterfaceProtocol
+        0,                                      // iInterface
+        // CDC Header Functional Descriptor, CDC Spec 5.2.3.1, Table 26
+        5,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x00,                                   // bDescriptorSubtype
+        0x10, 0x01,                             // bcdCDC
+        // Call Management Functional Descriptor, CDC Spec 5.2.3.2, Table 27
+        5,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x01,                                   // bDescriptorSubtype
+        0x01,                                   // bmCapabilities
+        1,                                      // bDataInterface
+        // Abstract Control Management Functional Descriptor, CDC Spec 5.2.3.3, Table 28
+        4,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x02,                                   // bDescriptorSubtype
+        0x06,                                   // bmCapabilities
+        // Union Functional Descriptor, CDC Spec 5.2.3.8, Table 33
+        5,                                      // bFunctionLength
+        0x24,                                   // bDescriptorType
+        0x06,                                   // bDescriptorSubtype
+        CDC3_STATUS_INTERFACE,                  // bMasterInterface
+        CDC3_DATA_INTERFACE,                    // bSlaveInterface0
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        7,                                      // bLength
+        5,                                      // bDescriptorType
+        CDC3_ACM_ENDPOINT | 0x80,               // bEndpointAddress
+        0x03,                                   // bmAttributes (0x03=intr)
+        CDC3_ACM_SIZE, 0,                       // wMaxPacketSize
+        64,                                     // bInterval
+        // interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
+        9,                                      // bLength
+        4,                                      // bDescriptorType
+        CDC3_DATA_INTERFACE,                    // bInterfaceNumber
+        0,                                      // bAlternateSetting
+        2,                                      // bNumEndpoints
+        0x0A,                                   // bInterfaceClass
+        0x00,                                   // bInterfaceSubClass
+        0x00,                                   // bInterfaceProtocol
+        0,                                      // iInterface
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        7,                                      // bLength
+        5,                                      // bDescriptorType
+        CDC3_RX_ENDPOINT,                       // bEndpointAddress
+        0x02,                                   // bmAttributes (0x02=bulk)
+        CDC3_RX_SIZE, 0,                        // wMaxPacketSize
+        0,                                      // bInterval
+        // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+        7,                                      // bLength
+        5,                                      // bDescriptorType
+        CDC3_TX_ENDPOINT | 0x80,                // bEndpointAddress
+        0x02,                                   // bmAttributes (0x02=bulk)
+        CDC3_TX_SIZE, 0,                        // wMaxPacketSize
+        0,                                      // bInterval
+#endif // CDC3_DATA_INTERFACE
+
 #ifdef MIDI_INTERFACE
         // Standard MS Interface Descriptor,
         9,                                      // bLength
@@ -696,14 +865,14 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         0x02,                                   // bDescriptorSubtype = MIDI_IN_JACK
         0x01,                                   // bJackType = EMBEDDED
         1,                                      // bJackID, ID = 1
-        0,                                      // iJack
+        0x05,                                      // iJack
         // MIDI IN Jack Descriptor, B.4.3, Table B-8 (external), page 40
         6,                                      // bLength
         0x24,                                   // bDescriptorType = CS_INTERFACE
         0x02,                                   // bDescriptorSubtype = MIDI_IN_JACK
         0x02,                                   // bJackType = EXTERNAL
         2,                                      // bJackID, ID = 2
-        0,                                      // iJack
+        0x05,                                      // iJack
         // MIDI OUT Jack Descriptor, B.4.4, Table B-9, page 41
         9,
         0x24,                                   // bDescriptorType = CS_INTERFACE
@@ -713,7 +882,7 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         1,                                      // bNrInputPins = 1 pin
         2,                                      // BaSourceID(1) = 2
         1,                                      // BaSourcePin(1) = first pin
-        0,                                      // iJack
+        0x05,                                      // iJack
         // MIDI OUT Jack Descriptor, B.4.4, Table B-10, page 41
         9,
         0x24,                                   // bDescriptorType = CS_INTERFACE
@@ -723,56 +892,56 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         1,                                      // bNrInputPins = 1 pin
         1,                                      // BaSourceID(1) = 1
         1,                                      // BaSourcePin(1) = first pin
-        0,                                      // iJack
+        0x05,                                      // iJack
   #if MIDI_NUM_CABLES >= 2
-	#define MIDI_INTERFACE_JACK_PAIR(a, b, c, d) \
-		6, 0x24, 0x02, 0x01, (a), 0, \
-		6, 0x24, 0x02, 0x02, (b), 0, \
-		9, 0x24, 0x03, 0x01, (c), 1, (b), 1, 0, \
-		9, 0x24, 0x03, 0x02, (d), 1, (a), 1, 0,
-	MIDI_INTERFACE_JACK_PAIR(5, 6, 7, 8)
+	#define MIDI_INTERFACE_JACK_PAIR(a, b, c, d, e) \
+		6, 0x24, 0x02, 0x01, (a), (e), \
+		6, 0x24, 0x02, 0x02, (b), (e), \
+		9, 0x24, 0x03, 0x01, (c), 1, (b), 1, (e), \
+		9, 0x24, 0x03, 0x02, (d), 1, (a), 1, (e),
+	MIDI_INTERFACE_JACK_PAIR(5, 6, 7, 8, 0x06)
   #endif
   #if MIDI_NUM_CABLES >= 3
-	MIDI_INTERFACE_JACK_PAIR(9, 10, 11, 12)
+	MIDI_INTERFACE_JACK_PAIR(9, 10, 11, 12, 0x07)
   #endif
   #if MIDI_NUM_CABLES >= 4
-	MIDI_INTERFACE_JACK_PAIR(13, 14, 15, 16)
+	MIDI_INTERFACE_JACK_PAIR(13, 14, 15, 16, 0x08)
   #endif
   #if MIDI_NUM_CABLES >= 5
-	MIDI_INTERFACE_JACK_PAIR(17, 18, 19, 20)
+	MIDI_INTERFACE_JACK_PAIR(17, 18, 19, 20, 0x09)
   #endif
   #if MIDI_NUM_CABLES >= 6
-	MIDI_INTERFACE_JACK_PAIR(21, 22, 23, 24)
+	MIDI_INTERFACE_JACK_PAIR(21, 22, 23, 24, 0x0A)
   #endif
   #if MIDI_NUM_CABLES >= 7
-	MIDI_INTERFACE_JACK_PAIR(25, 26, 27, 28)
+	MIDI_INTERFACE_JACK_PAIR(25, 26, 27, 28, 0x0B)
   #endif
   #if MIDI_NUM_CABLES >= 8
-	MIDI_INTERFACE_JACK_PAIR(29, 30, 31, 32)
+	MIDI_INTERFACE_JACK_PAIR(29, 30, 31, 32, 0x0C)
   #endif
   #if MIDI_NUM_CABLES >= 9
-	MIDI_INTERFACE_JACK_PAIR(33, 34, 35, 36)
+	MIDI_INTERFACE_JACK_PAIR(33, 34, 35, 36, 0x0D)
   #endif
   #if MIDI_NUM_CABLES >= 10
-	MIDI_INTERFACE_JACK_PAIR(37, 38, 39, 40)
+	MIDI_INTERFACE_JACK_PAIR(37, 38, 39, 40, 0x0E)
   #endif
   #if MIDI_NUM_CABLES >= 11
-	MIDI_INTERFACE_JACK_PAIR(41, 42, 43, 44)
+	MIDI_INTERFACE_JACK_PAIR(41, 42, 43, 44, 0x0F)
   #endif
   #if MIDI_NUM_CABLES >= 12
-	MIDI_INTERFACE_JACK_PAIR(45, 46, 47, 48)
+	MIDI_INTERFACE_JACK_PAIR(45, 46, 47, 48, 0x10)
   #endif
   #if MIDI_NUM_CABLES >= 13
-	MIDI_INTERFACE_JACK_PAIR(49, 50, 51, 52)
+	MIDI_INTERFACE_JACK_PAIR(49, 50, 51, 52, 0x11)
   #endif
   #if MIDI_NUM_CABLES >= 14
-	MIDI_INTERFACE_JACK_PAIR(53, 54, 55, 56)
+	MIDI_INTERFACE_JACK_PAIR(53, 54, 55, 56, 0x12)
   #endif
   #if MIDI_NUM_CABLES >= 15
-	MIDI_INTERFACE_JACK_PAIR(57, 58, 59, 60)
+	MIDI_INTERFACE_JACK_PAIR(57, 58, 59, 60, 0x13)
   #endif
   #if MIDI_NUM_CABLES >= 16
-	MIDI_INTERFACE_JACK_PAIR(61, 62, 63, 64)
+	MIDI_INTERFACE_JACK_PAIR(61, 62, 63, 64, 0x14)
   #endif
         // Standard Bulk OUT Endpoint Descriptor, B.5.1, Table B-11, pae 42
         9,                                      // bLength
@@ -1101,7 +1270,7 @@ static uint8_t config_descriptor[CONFIG_DESC_SIZE] = {
         0x06,                                   // bInterfaceClass (0x06 = still image)
         0x01,                                   // bInterfaceSubClass
         0x01,                                   // bInterfaceProtocol
-        0,                                      // iInterface
+        4,                                      // iInterface
         // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
         7,                                      // bLength
         5,                                      // bDescriptorType
@@ -1427,6 +1596,71 @@ extern struct usb_string_descriptor_struct usb_string_product_name
 extern struct usb_string_descriptor_struct usb_string_serial_number
         __attribute__ ((weak, alias("usb_string_serial_number_default")));
 
+#ifdef MIDI_INTERFACE
+        extern struct usb_string_descriptor_struct usb_string_midi_port1
+                __attribute__ ((weak, alias("usb_string_midi_port1_default")));
+#if MIDI_NUM_CABLES >= 2
+        extern struct usb_string_descriptor_struct usb_string_midi_port2
+                __attribute__ ((weak, alias("usb_string_midi_port2_default")));
+#endif
+#if MIDI_NUM_CABLES >= 3
+        extern struct usb_string_descriptor_struct usb_string_midi_port3
+                __attribute__ ((weak, alias("usb_string_midi_port3_default")));
+#endif
+#if MIDI_NUM_CABLES >= 4
+        extern struct usb_string_descriptor_struct usb_string_midi_port4
+                __attribute__ ((weak, alias("usb_string_midi_port4_default")));
+#endif
+#if MIDI_NUM_CABLES >= 5
+        extern struct usb_string_descriptor_struct usb_string_midi_port5
+                __attribute__ ((weak, alias("usb_string_midi_port5_default")));
+#endif
+#if MIDI_NUM_CABLES >= 6
+        extern struct usb_string_descriptor_struct usb_string_midi_port6
+                __attribute__ ((weak, alias("usb_string_midi_port6_default")));
+#endif
+#if MIDI_NUM_CABLES >= 7
+        extern struct usb_string_descriptor_struct usb_string_midi_port7
+                __attribute__ ((weak, alias("usb_string_midi_port7_default")));
+#endif
+#if MIDI_NUM_CABLES >= 8
+        extern struct usb_string_descriptor_struct usb_string_midi_port8
+                __attribute__ ((weak, alias("usb_string_midi_port8_default")));
+#endif
+#if MIDI_NUM_CABLES >= 9
+        extern struct usb_string_descriptor_struct usb_string_midi_port9
+                __attribute__ ((weak, alias("usb_string_midi_port9_default")));
+#endif
+#if MIDI_NUM_CABLES >= 10
+        extern struct usb_string_descriptor_struct usb_string_midi_port10
+                __attribute__ ((weak, alias("usb_string_midi_port10_default")));
+#endif
+#if MIDI_NUM_CABLES >= 11
+        extern struct usb_string_descriptor_struct usb_string_midi_port11
+                __attribute__ ((weak, alias("usb_string_midi_port11_default")));
+#endif
+#if MIDI_NUM_CABLES >= 12
+        extern struct usb_string_descriptor_struct usb_string_midi_port12
+                __attribute__ ((weak, alias("usb_string_midi_port12_default")));
+#endif
+#if MIDI_NUM_CABLES >= 13
+        extern struct usb_string_descriptor_struct usb_string_midi_port13
+                __attribute__ ((weak, alias("usb_string_midi_port13_default")));
+#endif
+#if MIDI_NUM_CABLES >= 14
+        extern struct usb_string_descriptor_struct usb_string_midi_port14
+                __attribute__ ((weak, alias("usb_string_midi_port14_default")));
+#endif
+#if MIDI_NUM_CABLES >= 15
+        extern struct usb_string_descriptor_struct usb_string_midi_port15
+                __attribute__ ((weak, alias("usb_string_midi_port15_default")));
+#endif
+#if MIDI_NUM_CABLES >= 16
+        extern struct usb_string_descriptor_struct usb_string_midi_port16
+                __attribute__ ((weak, alias("usb_string_midi_port16_default")));
+#endif
+#endif
+
 struct usb_string_descriptor_struct string0 = {
         4,
         3,
@@ -1448,6 +1682,119 @@ struct usb_string_descriptor_struct usb_string_serial_number_default = {
         3,
         {0,0,0,0,0,0,0,0,0,0}
 };
+#ifdef MIDI_INTERFACE
+        struct usb_string_descriptor_struct usb_string_midi_port1_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','1'}
+        };
+#if MIDI_NUM_CABLES >= 2
+        struct usb_string_descriptor_struct usb_string_midi_port2_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','2'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 3
+        struct usb_string_descriptor_struct usb_string_midi_port3_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','3'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 4
+        struct usb_string_descriptor_struct usb_string_midi_port4_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','4'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 5
+        struct usb_string_descriptor_struct usb_string_midi_port5_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','5'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 6
+        struct usb_string_descriptor_struct usb_string_midi_port6_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','6'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 7
+        struct usb_string_descriptor_struct usb_string_midi_port7_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','7'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 8
+        struct usb_string_descriptor_struct usb_string_midi_port8_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','8'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 9
+        struct usb_string_descriptor_struct usb_string_midi_port9_default = {
+                14,
+                3,
+                {'P','o','r','t',' ','9'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 10
+        struct usb_string_descriptor_struct usb_string_midi_port10_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','0'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 11
+        struct usb_string_descriptor_struct usb_string_midi_port11_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','1'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 12
+        struct usb_string_descriptor_struct usb_string_midi_port12_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','2'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 13
+        struct usb_string_descriptor_struct usb_string_midi_port13_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','3'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 14
+        struct usb_string_descriptor_struct usb_string_midi_port14_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','4'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 15
+        struct usb_string_descriptor_struct usb_string_midi_port15_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','5'}
+        };
+#endif
+#if MIDI_NUM_CABLES >= 16
+        struct usb_string_descriptor_struct usb_string_midi_port16_default = {
+                16,
+                3,
+                {'P','o','r','t',' ','1','6'}
+        };
+#endif
+#endif
+
 #ifdef MTP_INTERFACE
 struct usb_string_descriptor_struct usb_string_mtp = {
 	2 + 3 * 2,
@@ -1535,6 +1882,54 @@ const usb_descriptor_list_t usb_descriptor_list[] = {
 #endif
 #ifdef MTP_INTERFACE
 	{0x0304, 0x0409, (const uint8_t *)&usb_string_mtp, 0},
+#endif
+#ifdef MIDI_INTERFACE
+	{0x0305, 0x0409, (const uint8_t *)&usb_string_midi_port1, 0},
+#if MIDI_NUM_CABLES >= 2
+	{0x0306, 0x0409, (const uint8_t *)&usb_string_midi_port2, 0},
+#endif
+#if MIDI_NUM_CABLES >= 3
+	{0x0307, 0x0409, (const uint8_t *)&usb_string_midi_port3, 0},
+#endif
+#if MIDI_NUM_CABLES >= 4
+	{0x0308, 0x0409, (const uint8_t *)&usb_string_midi_port4, 0},
+#endif
+#if MIDI_NUM_CABLES >= 5
+	{0x0309, 0x0409, (const uint8_t *)&usb_string_midi_port5, 0},
+#endif
+#if MIDI_NUM_CABLES >= 6
+	{0x030A, 0x0409, (const uint8_t *)&usb_string_midi_port6, 0},
+#endif
+#if MIDI_NUM_CABLES >= 7
+	{0x030B, 0x0409, (const uint8_t *)&usb_string_midi_port7, 0},
+#endif
+#if MIDI_NUM_CABLES >= 8
+	{0x030C, 0x0409, (const uint8_t *)&usb_string_midi_port8, 0},
+#endif
+#if MIDI_NUM_CABLES >= 9
+	{0x030D, 0x0409, (const uint8_t *)&usb_string_midi_port9, 0},
+#endif
+#if MIDI_NUM_CABLES >= 10
+	{0x030E, 0x0409, (const uint8_t *)&usb_string_midi_port10, 0},
+#endif
+#if MIDI_NUM_CABLES >= 11
+	{0x030F, 0x0409, (const uint8_t *)&usb_string_midi_port11, 0},
+#endif
+#if MIDI_NUM_CABLES >= 12
+	{0x0310, 0x0409, (const uint8_t *)&usb_string_midi_port12, 0},
+#endif
+#if MIDI_NUM_CABLES >= 13
+	{0x0311, 0x0409, (const uint8_t *)&usb_string_midi_port13, 0},
+#endif
+#if MIDI_NUM_CABLES >= 14
+	{0x0312, 0x0409, (const uint8_t *)&usb_string_midi_port14, 0},
+#endif
+#if MIDI_NUM_CABLES >= 15
+	{0x0313, 0x0409, (const uint8_t *)&usb_string_midi_port15, 0},
+#endif
+#if MIDI_NUM_CABLES >= 16
+	{0x0314, 0x0409, (const uint8_t *)&usb_string_midi_port16, 0},
+#endif
 #endif
         {0x0300, 0x0000, (const uint8_t *)&string0, 0},
         {0x0301, 0x0409, (const uint8_t *)&usb_string_manufacturer_name, 0},

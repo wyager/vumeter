@@ -59,6 +59,7 @@
  * your function is called only one time, based on the last trigger
  * event.
  */
+extern "C" void systick_isr_with_timer_events(void);
 
 class EventResponder;
 typedef EventResponder& EventResponderRef;
@@ -82,11 +83,12 @@ public:
 	// Attach a function to be called from yield().  This should be the
 	// default way to use EventResponder.  Calls from yield() allow use
 	// of Arduino libraries, String, Serial, etc.
-	void attach(EventResponderFunction function, uint8_t priority=128) {
+	void attach(EventResponderFunction function, uint8_t priority __attribute__((unused)) = 128) {
 		bool irq = disableInterrupts();
 		detachNoInterrupts();
 		_function = function;
 		_type = EventTypeYield;
+		yield_active_check_flags |= YIELD_CHECK_EVENT_RESPONDER; // user setup a yield type...
 		enableInterrupts(irq);
 	}
 
@@ -106,18 +108,20 @@ public:
 	// this as attachImmediate.  On ARM and other platforms with software
 	// interrupts, this allow fast interrupt-based response, but with less
 	// disruption to other libraries requiring their own interrupts.
-	void attachInterrupt(EventResponderFunction function, uint8_t priority=128) {
+	void attachInterrupt(EventResponderFunction function, uint8_t priority __attribute__((unused)) = 128) {
 		bool irq = disableInterrupts();
 		detachNoInterrupts();
 		_function = function;
 		_type = EventTypeInterrupt;
 		SCB_SHPR3 |= 0x00FF0000; // configure PendSV, lowest priority
+		// Make sure we are using the systic ISR that process this
+		_VectorsRam[15] = systick_isr_with_timer_events;
 		enableInterrupts(irq);
 	}
 
 	// Attach a function to be called as its own thread.  Boards not running
 	// a RTOS or pre-emptive scheduler shall implement this as attach().
-	void attachThread(EventResponderFunction function, void *param=nullptr) {
+	void attachThread(EventResponderFunction function, void *param __attribute__((unused)) = nullptr) {
 		attach(function); // for non-RTOS usage, compile as default attach
 	}
 
@@ -170,6 +174,7 @@ public:
 	EventResponder * waitForEvent(EventResponder *list, int listsize, int timeout);
 
 	static void runFromYield() {
+		if (!firstYield) return;  
 		// First, check if yield was called from an interrupt
 		// never call normal handler functions from any interrupt context
 		uint32_t ipsr;

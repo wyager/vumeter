@@ -32,6 +32,7 @@
 #define HardwareSerial_h
 
 #include "kinetis.h"
+#include <stddef.h>
 
 // Uncomment to enable 9 bit formats.  These are default disabled to save memory.
 //#define SERIAL_9BIT_SUPPORT
@@ -101,6 +102,13 @@
 #define SERIAL_8N2_TXINV 0x24
 #define SERIAL_8N2_RXINV_TXINV 0x34
 #endif
+
+// Half duplex support
+#define SERIAL_HALF_DUPLEX 0x200
+#define SERIAL_7E1_HALF_DUPLEX (SERIAL_7E1 | SERIAL_HALF_DUPLEX)
+#define SERIAL_7O1_HALF_DUPLEX (SERIAL_7O1 | SERIAL_HALF_DUPLEX)
+#define SERIAL_8N1_HALF_DUPLEX (SERIAL_8N1 | SERIAL_HALF_DUPLEX)
+
 // bit0: parity, 0=even, 1=odd
 // bit1: parity, 0=disable, 1=enable
 // bit2: mode, 1=9bit, 0=8bit
@@ -109,6 +117,8 @@
 // bit5: txinv, 0=normal, 1=inverted
 // bit6: unused
 // bit7: actual data goes into 9th bit
+// bit8: 2 stop bits (T3.5/3.6 and LC)
+// bit9: Half duplex
 
 
 #if defined(KINETISK)
@@ -147,6 +157,8 @@ void serial_putchar(uint32_t c);
 void serial_write(const void *buf, unsigned int count);
 void serial_flush(void);
 int serial_write_buffer_free(void);
+void serial_add_memory_for_read(void *buffer, size_t length);
+void serial_add_memory_for_write(void *buffer, size_t length);
 int serial_available(void);
 int serial_getchar(void);
 int serial_peek(void);
@@ -168,6 +180,8 @@ void serial2_putchar(uint32_t c);
 void serial2_write(const void *buf, unsigned int count);
 void serial2_flush(void);
 int serial2_write_buffer_free(void);
+void serial2_add_memory_for_read(void *buffer, size_t length);
+void serial2_add_memory_for_write(void *buffer, size_t length);
 int serial2_available(void);
 int serial2_getchar(void);
 int serial2_peek(void);
@@ -185,6 +199,8 @@ void serial3_putchar(uint32_t c);
 void serial3_write(const void *buf, unsigned int count);
 void serial3_flush(void);
 int serial3_write_buffer_free(void);
+void serial3_add_memory_for_read(void *buffer, size_t length);
+void serial3_add_memory_for_write(void *buffer, size_t length);
 int serial3_available(void);
 int serial3_getchar(void);
 int serial3_peek(void);
@@ -202,6 +218,8 @@ void serial4_putchar(uint32_t c);
 void serial4_write(const void *buf, unsigned int count);
 void serial4_flush(void);
 int serial4_write_buffer_free(void);
+void serial4_add_memory_for_read(void *buffer, size_t length);
+void serial4_add_memory_for_write(void *buffer, size_t length);
 int serial4_available(void);
 int serial4_getchar(void);
 int serial4_peek(void);
@@ -219,6 +237,8 @@ void serial5_putchar(uint32_t c);
 void serial5_write(const void *buf, unsigned int count);
 void serial5_flush(void);
 int serial5_write_buffer_free(void);
+void serial5_add_memory_for_read(void *buffer, size_t length);
+void serial5_add_memory_for_write(void *buffer, size_t length);
 int serial5_available(void);
 int serial5_getchar(void);
 int serial5_peek(void);
@@ -236,6 +256,8 @@ void serial6_putchar(uint32_t c);
 void serial6_write(const void *buf, unsigned int count);
 void serial6_flush(void);
 int serial6_write_buffer_free(void);
+void serial6_add_memory_for_read(void *buffer, size_t length);
+void serial6_add_memory_for_write(void *buffer, size_t length);
 int serial6_available(void);
 int serial6_getchar(void);
 int serial6_peek(void);
@@ -253,8 +275,13 @@ void serial6_clear(void);
 class HardwareSerial : public Stream
 {
 public:
-	constexpr HardwareSerial() {}
-	virtual void begin(uint32_t baud) { serial_begin(BAUD2DIV(baud)); }
+	constexpr HardwareSerial(void (* const se)()) : _serialEvent(se) {}
+	#if defined(__MK64FX512__) || defined(__MK66FX1M0__) 
+	enum {CNT_HARDWARE_SERIAL = 6};
+	#else //(__MK64FX512__) || defined(__MK66FX1M0__) 
+	enum {CNT_HARDWARE_SERIAL = 3};
+	#endif
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial_begin(BAUD2DIV(baud));
 					  serial_format(format); }
@@ -270,6 +297,8 @@ public:
 	virtual void flush(void)        { serial_flush(); }
 	virtual void clear(void)	{ serial_clear(); }
 	virtual int availableForWrite(void) { return serial_write_buffer_free(); }
+ 	virtual void addMemoryForRead(void *buffer, size_t length) {serial_add_memory_for_read(buffer, length);}
+	virtual void addMemoryForWrite(void *buffer, size_t length){serial_add_memory_for_write(buffer, length);}
 	using Print::write;
 	virtual size_t write(uint8_t c) { serial_putchar(c); return 1; }
 	virtual size_t write(unsigned long n)   { return write((uint8_t)n); }
@@ -283,6 +312,21 @@ public:
 					  return len; }
 	virtual size_t write9bit(uint32_t c)	{ serial_putchar(c); return 1; }
 	operator bool()			{ return true; }
+
+	static inline void processSerialEventsList() {
+		for (uint8_t i = 0; i < s_count_serials_with_serial_events; i++) {
+			s_serials_with_serial_events[i]->doYieldCode();
+		}
+	}
+protected:
+	static HardwareSerial 	*s_serials_with_serial_events[CNT_HARDWARE_SERIAL];
+	static uint8_t 			s_count_serials_with_serial_events;
+	void 		(* const _serialEvent)(); 
+	void addToSerialEventsList(); 
+	inline void doYieldCode()  {
+		if (available()) (*_serialEvent)();
+	}
+
 };
 extern HardwareSerial Serial1;
 extern void serialEvent1(void);
@@ -290,8 +334,8 @@ extern void serialEvent1(void);
 class HardwareSerial2 : public HardwareSerial
 {
 public:
-	constexpr HardwareSerial2() {}
-	virtual void begin(uint32_t baud) { serial2_begin(BAUD2DIV2(baud)); }
+	constexpr HardwareSerial2(void (* const se)()) : HardwareSerial(se) {}
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial2_begin(BAUD2DIV2(baud));
 					  serial2_format(format); }
@@ -307,6 +351,8 @@ public:
 	virtual void flush(void)        { serial2_flush(); }
 	virtual void clear(void)	{ serial2_clear(); }
 	virtual int availableForWrite(void) { return serial2_write_buffer_free(); }
+ 	virtual void addMemoryForRead(void *buffer, size_t length) {serial2_add_memory_for_read(buffer, length);}
+	virtual void addMemoryForWrite(void *buffer, size_t length){serial2_add_memory_for_write(buffer, length);}
 	using Print::write;
 	virtual size_t write(uint8_t c) { serial2_putchar(c); return 1; }
 	virtual size_t write(unsigned long n)   { return write((uint8_t)n); }
@@ -327,8 +373,8 @@ extern void serialEvent2(void);
 class HardwareSerial3 : public HardwareSerial
 {
 public:
-	constexpr HardwareSerial3() {}
-	virtual void begin(uint32_t baud) { serial3_begin(BAUD2DIV3(baud)); }
+	constexpr HardwareSerial3(void (* const se)()) : HardwareSerial(se) {}
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial3_begin(BAUD2DIV3(baud));
 					  serial3_format(format); }
@@ -344,6 +390,8 @@ public:
 	virtual void flush(void)        { serial3_flush(); }
 	virtual void clear(void)	{ serial3_clear(); }
 	virtual int availableForWrite(void) { return serial3_write_buffer_free(); }
+ 	virtual void addMemoryForRead(void *buffer, size_t length) {serial3_add_memory_for_read(buffer, length);}
+	virtual void addMemoryForWrite(void *buffer, size_t length){serial3_add_memory_for_write(buffer, length);}
 	using Print::write;
 	virtual size_t write(uint8_t c) { serial3_putchar(c); return 1; }
 	virtual size_t write(unsigned long n)   { return write((uint8_t)n); }
@@ -364,8 +412,8 @@ extern void serialEvent3(void);
 class HardwareSerial4 : public HardwareSerial
 {
 public:
-	constexpr HardwareSerial4() {}
-	virtual void begin(uint32_t baud) { serial4_begin(BAUD2DIV3(baud)); }
+	constexpr HardwareSerial4(void (* const se)()) : HardwareSerial(se) {}
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial4_begin(BAUD2DIV3(baud));
 					  serial4_format(format); }
@@ -381,6 +429,8 @@ public:
 	virtual void flush(void)        { serial4_flush(); }
 	virtual void clear(void)	{ serial4_clear(); }
 	virtual int availableForWrite(void) { return serial4_write_buffer_free(); }
+ 	virtual void addMemoryForRead(void *buffer, size_t length) {serial4_add_memory_for_read(buffer, length);}
+	virtual void addMemoryForWrite(void *buffer, size_t length){serial4_add_memory_for_write(buffer, length);}
 	using Print::write;
 	virtual size_t write(uint8_t c) { serial4_putchar(c); return 1; }
 	virtual size_t write(unsigned long n)   { return write((uint8_t)n); }
@@ -401,8 +451,8 @@ extern void serialEvent4(void);
 class HardwareSerial5 : public HardwareSerial
 {
 public:
-	constexpr HardwareSerial5() {}
-	virtual void begin(uint32_t baud) { serial5_begin(BAUD2DIV3(baud)); }
+	constexpr HardwareSerial5(void (* const se)()) : HardwareSerial(se) {}
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial5_begin(BAUD2DIV3(baud));
 					  serial5_format(format); }
@@ -418,6 +468,8 @@ public:
 	virtual void flush(void)        { serial5_flush(); }
 	virtual void clear(void)	{ serial5_clear(); }
 	virtual int availableForWrite(void) { return serial5_write_buffer_free(); }
+ 	virtual void addMemoryForRead(void *buffer, size_t length) {serial5_add_memory_for_read(buffer, length);}
+	virtual void addMemoryForWrite(void *buffer, size_t length){serial5_add_memory_for_write(buffer, length);}
 	using Print::write;
 	virtual size_t write(uint8_t c) { serial5_putchar(c); return 1; }
 	virtual size_t write(unsigned long n)   { return write((uint8_t)n); }
@@ -438,14 +490,14 @@ extern void serialEvent5(void);
 class HardwareSerial6 : public HardwareSerial
 {
 public:
-	constexpr HardwareSerial6() {}
+	constexpr HardwareSerial6(void (* const se)()) : HardwareSerial(se) {}
 #if defined(__MK66FX1M0__)	// For LPUART just pass baud straight in. 
-	virtual void begin(uint32_t baud) { serial6_begin(baud); }
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial6_begin(baud);
 					  serial6_format(format); }
 #else
-	virtual void begin(uint32_t baud) { serial6_begin(BAUD2DIV3(baud)); }
+	virtual void begin(uint32_t baud);
 	virtual void begin(uint32_t baud, uint32_t format) {
 					  serial6_begin(BAUD2DIV3(baud));
 					  serial6_format(format); }
@@ -462,6 +514,8 @@ public:
 	virtual void flush(void)        { serial6_flush(); }
 	virtual void clear(void)	{ serial6_clear(); }
 	virtual int availableForWrite(void) { return serial6_write_buffer_free(); }
+ 	virtual void addMemoryForRead(void *buffer, size_t length) {serial6_add_memory_for_read(buffer, length);}
+	virtual void addMemoryForWrite(void *buffer, size_t length){serial6_add_memory_for_write(buffer, length);}
 	using Print::write;
 	virtual size_t write(uint8_t c) { serial6_putchar(c); return 1; }
 	virtual size_t write(unsigned long n)   { return write((uint8_t)n); }

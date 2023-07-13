@@ -34,25 +34,31 @@ class AudioPlayQueue : public AudioStream
 {
 private:
 #if defined(__IMXRT1062__) || defined(__MK66FX1M0__) || defined(__MK64FX512__)
-	static const int max_buffers = 80;
+	static const unsigned int MAX_BUFFERS = 80;
 #else
-	static const int max_buffers = 32;
+	static const unsigned int MAX_BUFFERS = 32;
 #endif
 public:
 	AudioPlayQueue(void) : AudioStream(0, NULL),
-		userblock(NULL), head(0), tail(0) { }
-	void play(int16_t data);
-	void play(const int16_t *data, uint32_t len);
+	  userblock(NULL), uptr(0), head(0), tail(0), max_buffers(MAX_BUFFERS) { }
+	uint32_t play(int16_t data);
+	uint32_t play(const int16_t *data, uint32_t len);
 	bool available(void);
 	int16_t * getBuffer(void);
-	void playBuffer(void);
+	uint32_t playBuffer(void);
 	void stop(void);
+	void setMaxBuffers(uint8_t);
 	//bool isPlaying(void) { return playing; }
 	virtual void update(void);
+	enum behaviour_e {ORIGINAL,NON_STALLING};
+	void setBehaviour(behaviour_e behave) {behaviour = behave;}
 private:
-	audio_block_t *queue[max_buffers];
+	audio_block_t *queue[MAX_BUFFERS];
 	audio_block_t *userblock;
+	unsigned int uptr; // actually an index, NOT a pointer!
 	volatile uint8_t head, tail;
+	volatile uint8_t max_buffers;
+	behaviour_e behaviour;
 };
 
 #endif

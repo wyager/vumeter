@@ -31,6 +31,7 @@
 #include "core_pins.h"
 #include "pins_arduino.h"
 #include "HardwareSerial.h"
+#include <sys/time.h>
 
 
 #if defined(KINETISK)
@@ -385,11 +386,32 @@ void rtc_compensate(int adjust)
 	RTC_TCR = ((interval - 1) << 8) | tcr;
 }
 
+__attribute__((weak))
+int _gettimeofday(struct timeval *tv, void *ignore)
+{
+	uint32_t sec = RTC_TSR;
+	uint32_t pre = RTC_TPR;
+	while (1) {
+		uint32_t sec2 = RTC_TSR;  // MK20DX256 manual, page 949-950
+		uint32_t pre2 = RTC_TPR;
+		if (sec == sec2 && pre == pre2) {
+			tv->tv_sec = sec;
+			tv->tv_usec = ((pre & 0x7FFF) * 15625) >> 9;
+			return 0;
+		}
+		sec = sec2;
+		pre = pre2;
+	}
+}
+
 #else
 
 unsigned long rtc_get(void) { return 0; }
 void rtc_set(unsigned long t) { }
 void rtc_compensate(int adjust) { }
+
+__attribute__((weak))
+int _gettimeofday(struct timeval *tv, void *ignore) { return -1; }
 
 #endif
 
@@ -441,6 +463,8 @@ void init_rtc(void)
 
 extern void usb_init(void);
 
+static void startup_default_middle_hook(void) {}
+void startup_middle_hook(void)	__attribute__ ((weak, alias("startup_default_middle_hook")));
 
 // create a default PWM at the same 488.28 Hz as Arduino Uno
 
@@ -585,28 +609,21 @@ void _init_Teensyduino_internal_(void)
 	analog_init();
 
 #if !defined(TEENSY_INIT_USB_DELAY_BEFORE)
-	#if TEENSYDUINO >= 142
-		#define TEENSY_INIT_USB_DELAY_BEFORE 25
-	#else
-		#define TEENSY_INIT_USB_DELAY_BEFORE 50
-	#endif
+	#define TEENSY_INIT_USB_DELAY_BEFORE 20
 #endif
 
 #if !defined(TEENSY_INIT_USB_DELAY_AFTER)
-	#if TEENSYDUINO >= 142
-		#define TEENSY_INIT_USB_DELAY_AFTER 275
-	#else
-		#define TEENSY_INIT_USB_DELAY_AFTER 350
-	#endif
+	#define TEENSY_INIT_USB_DELAY_AFTER 280
 #endif
 
 	// for background about this startup delay, please see these conversations
 	// https://forum.pjrc.com/threads/36606-startup-time-(400ms)?p=113980&viewfull=1#post113980
 	// https://forum.pjrc.com/threads/31290-Teensey-3-2-Teensey-Loader-1-24-Issues?p=87273&viewfull=1#post87273
 
-	delay(TEENSY_INIT_USB_DELAY_BEFORE);
+	startup_middle_hook();
+	while (millis() < TEENSY_INIT_USB_DELAY_BEFORE) ; // wait
 	usb_init();
-	delay(TEENSY_INIT_USB_DELAY_AFTER);
+	while (millis() < TEENSY_INIT_USB_DELAY_AFTER + TEENSY_INIT_USB_DELAY_BEFORE) ; // wait
 }
 
 
@@ -1063,6 +1080,16 @@ void digitalWrite(uint8_t pin, uint8_t val)
 		}
 	}
 
+}
+
+void digitalToggle(uint8_t pin)
+{
+	if (pin >= CORE_NUM_DIGITAL) return;
+#ifdef KINETISK
+	*portToggleRegister(pin) = 1;
+#else
+	*portToggleRegister(pin) = digitalPinToBitMask(pin);
+#endif
 }
 
 uint8_t digitalRead(uint8_t pin)

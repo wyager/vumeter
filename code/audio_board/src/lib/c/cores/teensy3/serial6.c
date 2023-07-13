@@ -31,6 +31,7 @@
 #include "kinetis.h"
 #include "core_pins.h"
 #include "HardwareSerial.h"
+#include <stddef.h>
 
 #ifdef HAS_KINETISK_UART5
 
@@ -63,6 +64,14 @@ static uint8_t use9Bits = 0;
 
 static volatile BUFTYPE tx_buffer[SERIAL6_TX_BUFFER_SIZE];
 static volatile BUFTYPE rx_buffer[SERIAL6_RX_BUFFER_SIZE];
+static volatile BUFTYPE	*rx_buffer_storage_ = NULL;
+static volatile BUFTYPE	*tx_buffer_storage_ = NULL;
+
+static size_t tx_buffer_total_size_ = SERIAL6_TX_BUFFER_SIZE;
+static size_t rx_buffer_total_size_ = SERIAL6_RX_BUFFER_SIZE;
+static size_t rts_low_watermark_ = RTS_LOW_WATERMARK;
+static size_t rts_high_watermark_ = RTS_HIGH_WATERMARK;
+
 static volatile uint8_t transmitting = 0;
 static volatile uint8_t *transmit_pin=NULL;
 #define transmit_assert()   *transmit_pin = 1
@@ -100,6 +109,11 @@ static uint8_t tx_pin_num = 48;
 #define C2_TX_ACTIVE		C2_ENABLE | UART_C2_TIE
 #define C2_TX_COMPLETING	C2_ENABLE | UART_C2_TCIE
 #define C2_TX_INACTIVE		C2_ENABLE
+
+// BITBAND Support
+#define GPIO_BITBAND_ADDR(reg, bit) (((uint32_t)&(reg) - 0x40000000) * 32 + (bit) * 4 + 0x42000000)
+#define GPIO_BITBAND_PTR(reg, bit) ((uint32_t *)GPIO_BITBAND_ADDR((reg), (bit)))
+#define C3_TXDIR_BIT 5
 
 void serial6_begin(uint32_t divisor)
 {
@@ -148,6 +162,18 @@ void serial6_format(uint32_t format)
 		uint8_t bdl = UART5_BDL;
 		UART5_BDH |= UART_BDH_SBNS;		// Turn on 2 stop bits - was turned off by set baud
 		UART5_BDL = bdl;		// Says BDH not acted on until BDL is written
+	}
+	// process request for half duplex.
+	if ((format & SERIAL_HALF_DUPLEX) != 0) {
+		UART5_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+		volatile uint32_t *reg = portConfigRegister(tx_pin_num);
+		*reg = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+
+		// Lets try to make use of bitband address to set the direction for ue...
+		transmit_pin = (uint8_t*)GPIO_BITBAND_PTR(UART5_C3, C3_TXDIR_BIT);
+
+	} else {
+		if (transmit_pin == (uint8_t*)GPIO_BITBAND_PTR(UART5_C3, C3_TXDIR_BIT)) transmit_pin = NULL;
 	}
 }
 
@@ -234,14 +260,18 @@ void serial6_putchar(uint32_t c)
 	if (!(SIM_SCGC1 & SIM_SCGC1_UART5)) return;
 	if (transmit_pin) transmit_assert();
 	head = tx_buffer_head;
-	if (++head >= SERIAL6_TX_BUFFER_SIZE) head = 0;
+	if (++head >= tx_buffer_total_size_) head = 0;
 	while (tx_buffer_tail == head) {
 		int priority = nvic_execution_priority();
 		if (priority <= IRQ_PRIORITY) {
 			if ((UART5_S1 & UART_S1_TDRE)) {
 				uint32_t tail = tx_buffer_tail;
-				if (++tail >= SERIAL6_TX_BUFFER_SIZE) tail = 0;
-				n = tx_buffer[tail];
+				if (++tail >= tx_buffer_total_size_) tail = 0;
+				if (tail < SERIAL6_TX_BUFFER_SIZE) {
+					n = tx_buffer[tail];
+				} else {
+					n = tx_buffer_storage_[tail-SERIAL6_TX_BUFFER_SIZE];
+				}
 				if (use9Bits) UART5_C3 = (UART5_C3 & ~0x40) | ((n & 0x100) >> 2);
 				UART5_D = n;
 				tx_buffer_tail = tail;
@@ -250,7 +280,11 @@ void serial6_putchar(uint32_t c)
 			yield(); // wait
 		}
 	}
-	tx_buffer[head] = c;
+	if (head < SERIAL6_TX_BUFFER_SIZE) {
+		tx_buffer[head] = c;
+	} else {
+		tx_buffer_storage_[head - SERIAL6_TX_BUFFER_SIZE] = c;
+	}
 	transmitting = 1;
 	tx_buffer_head = head;
 	UART5_C2 = C2_TX_ACTIVE;
@@ -273,7 +307,7 @@ int serial6_write_buffer_free(void)
 
 	head = tx_buffer_head;
 	tail = tx_buffer_tail;
-	if (head >= tail) return SERIAL6_TX_BUFFER_SIZE - 1 - head + tail;
+	if (head >= tail) return tx_buffer_total_size_ - 1 - head + tail;
 	return tail - head - 1;
 }
 
@@ -284,7 +318,7 @@ int serial6_available(void)
 	head = rx_buffer_head;
 	tail = rx_buffer_tail;
 	if (head >= tail) return head - tail;
-	return SERIAL6_RX_BUFFER_SIZE + head - tail;
+	return rx_buffer_total_size_ + head - tail;
 }
 
 int serial6_getchar(void)
@@ -295,14 +329,18 @@ int serial6_getchar(void)
 	head = rx_buffer_head;
 	tail = rx_buffer_tail;
 	if (head == tail) return -1;
-	if (++tail >= SERIAL6_RX_BUFFER_SIZE) tail = 0;
-	c = rx_buffer[tail];
+	if (++tail >= rx_buffer_total_size_) tail = 0;
+	if (tail < SERIAL6_RX_BUFFER_SIZE) {
+		c = rx_buffer[tail];
+	} else {
+		c = rx_buffer_storage_[tail-SERIAL6_RX_BUFFER_SIZE];
+	}
 	rx_buffer_tail = tail;
 	if (rts_pin) {
 		int avail;
 		if (head >= tail) avail = head - tail;
-		else avail = SERIAL6_RX_BUFFER_SIZE + head - tail;
-		if (avail <= RTS_LOW_WATERMARK) rts_assert();
+		else avail = rx_buffer_total_size_ + head - tail;
+		if (avail <= rts_low_watermark_) rts_assert();
 	}
 	return c;
 }
@@ -314,8 +352,11 @@ int serial6_peek(void)
 	head = rx_buffer_head;
 	tail = rx_buffer_tail;
 	if (head == tail) return -1;
-	if (++tail >= SERIAL6_RX_BUFFER_SIZE) tail = 0;
-	return rx_buffer[tail];
+	if (++tail >= rx_buffer_total_size_) tail = 0;
+	if (tail < SERIAL6_RX_BUFFER_SIZE) {
+		return rx_buffer[tail];
+	}
+	return rx_buffer_storage_[tail-SERIAL6_RX_BUFFER_SIZE];
 }
 
 void serial6_clear(void)
@@ -344,17 +385,22 @@ void uart5_status_isr(void)
 			n = UART5_D;
 		}
 		head = rx_buffer_head + 1;
-		if (head >= SERIAL6_RX_BUFFER_SIZE) head = 0;
+		if (head >= rx_buffer_total_size_) head = 0;
 		if (head != rx_buffer_tail) {
-			rx_buffer[head] = n;
+			if (head < SERIAL6_RX_BUFFER_SIZE) {
+				rx_buffer[head] = n;
+			} else {
+				rx_buffer_storage_[head-SERIAL6_RX_BUFFER_SIZE] = n;
+			}
+
 			rx_buffer_head = head;
 		}
 		if (rts_pin) {
 			int avail;
 			tail = tx_buffer_tail;
 			if (head >= tail) avail = head - tail;
-			else avail = SERIAL6_RX_BUFFER_SIZE + head - tail;
-			if (avail >= RTS_HIGH_WATERMARK) rts_deassert();
+			else avail = rx_buffer_total_size_ + head - tail;
+			if (avail >= rts_high_watermark_) rts_deassert();
 		}
 	}
 	c = UART5_C2;
@@ -364,8 +410,12 @@ void uart5_status_isr(void)
 		if (head == tail) {
 			UART5_C2 = C2_TX_COMPLETING;
 		} else {
-			if (++tail >= SERIAL6_TX_BUFFER_SIZE) tail = 0;
-			n = tx_buffer[tail];
+			if (++tail >= tx_buffer_total_size_) tail = 0;
+			if (tail < SERIAL6_TX_BUFFER_SIZE) {
+				n = tx_buffer[tail];
+			} else {
+				n = tx_buffer_storage_[tail-SERIAL6_TX_BUFFER_SIZE];
+			}
 			if (use9Bits) UART5_C3 = (UART5_C3 & ~0x40) | ((n & 0x100) >> 2);
 			UART5_D = n;
 			tx_buffer_tail = tail;
@@ -377,5 +427,29 @@ void uart5_status_isr(void)
 		UART5_C2 = C2_TX_INACTIVE;
 	}
 }
+
+void serial6_add_memory_for_read(void *buffer, size_t length)
+{
+	rx_buffer_storage_ = (BUFTYPE*)buffer;
+	if (buffer) {
+		rx_buffer_total_size_ = SERIAL6_RX_BUFFER_SIZE + length;
+	} else {
+		rx_buffer_total_size_ = SERIAL6_RX_BUFFER_SIZE;
+	} 
+
+	rts_low_watermark_ = RTS_LOW_WATERMARK + length;
+	rts_high_watermark_ = RTS_HIGH_WATERMARK + length;
+}
+
+void serial6_add_memory_for_write(void *buffer, size_t length)
+{
+	tx_buffer_storage_ = (BUFTYPE*)buffer;
+	if (buffer) {
+		tx_buffer_total_size_ = SERIAL6_TX_BUFFER_SIZE + length;
+	} else {
+		tx_buffer_total_size_ = SERIAL6_TX_BUFFER_SIZE;
+	} 
+}
+
 
 #endif // HAS_KINETISK_UART5

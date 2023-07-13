@@ -56,18 +56,19 @@ class Stream : public Print
 	size_t readBytes(uint8_t *buffer, size_t length) { return readBytes((char *)buffer, length); }
 	size_t readBytesUntil(char terminator, char *buffer, size_t length);
 	size_t readBytesUntil(char terminator, uint8_t *buffer, size_t length) { return readBytesUntil(terminator, (char *)buffer, length); }
-	String readString(size_t max = 120);
-	String readStringUntil(char terminator, size_t max = 120);
+	String readString(size_t max = 0 /* 0 means unlimited length */);
+	String readStringUntil(char terminator, size_t max = 0 /* 0 means unlimited length */);
 	int getReadError() { return read_error; }
 	void clearReadError() { setReadError(0); }
   protected:
 	void setReadError(int err = 1) { read_error = err; }
-	unsigned long _timeout;
-  private:
-	char read_error;
 	int timedRead();
 	int timedPeek();
 	int peekNextDigit();
+
+	unsigned long _timeout;
+  private:
+	char read_error;
 };
 
 #endif

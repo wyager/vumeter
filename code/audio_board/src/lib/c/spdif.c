@@ -3,6 +3,7 @@
 #include "core_pins.h"
 #include "stdbool.h"
 #include "imxrt.h"
+#include "avr/pgmspace.h"
 
 typedef struct __attribute__((packed, aligned(4))) {
         volatile const void * volatile SADDR;
@@ -28,10 +29,10 @@ volatile uint32_t F_BUS_ACTUAL = 132000000;
 #define BUFFERLEN 1536
 
 // Written to by DMA, read by ISR
-volatile static DMAMEM int32_t spdif_rx_buffer[SPDIF_RX_BUFFER_LENGTH] = {};
+static volatile __attribute__((section(".dmabuffers"), used)) int32_t spdif_rx_buffer[SPDIF_RX_BUFFER_LENGTH] = {};
 // Written to by ISR, read by "userspace" code
-volatile static float bufferR[BUFFERLEN] = {};
-volatile static float bufferL[BUFFERLEN] = {};
+static volatile float bufferR[BUFFERLEN] = {};
+static volatile float bufferL[BUFFERLEN] = {};
 volatile uint32_t buffer_offset = 0; // Write to write next
 volatile uint32_t buffer_read_offset = 0; // Where to read next
 

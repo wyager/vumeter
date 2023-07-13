@@ -35,6 +35,7 @@
 
 
 // Flash Security Setting. On Teensy 3.2, you can lock the MK20 chip to prevent
+// ( The same applies to the Teensy 3.5 and Teensy 3.6 for their processors )
 // anyone from reading your code.  You CAN still reprogram your Teensy while
 // security is set, but the bootloader will be unable to respond to auto-reboot
 // requests from Arduino. Pressing the program button will cause a full chip
@@ -1154,9 +1155,9 @@ void ResetHandler(void)
 	}
 #endif
 
+	startup_late_hook();
 	__libc_init_array();
 
-	startup_late_hook();
 	main();
 	
 	while (1) ;
@@ -1179,6 +1180,7 @@ char *__brkval = (char *)&_ebss;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+__attribute__((weak))
 void * _sbrk(int incr)
 {
 	char *prev, *stack;

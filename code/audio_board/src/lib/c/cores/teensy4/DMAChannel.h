@@ -490,31 +490,10 @@ public:
 	// it will move data as rapidly as possible, without waiting.
 	// Normally this would be used with disableOnCompletion().
 	void triggerContinuously(void) {
-		// TODO: update this for IMXRT.  On Kinetis, a small handful
-		// of DMAMUX slots were dedicated to "always on".  On IMXRT,
-		// all of them can work as "always on" by setting their
-		// DMAMUX_CHCFG_A_ON bit.
-#if 0
-		volatile uint8_t *mux = (volatile uint8_t *)&DMAMUX0_CHCFG0;
-		mux[channel] = 0;
-#if DMAMUX_NUM_SOURCE_ALWAYS >= DMA_NUM_CHANNELS
-		mux[channel] = DMAMUX_SOURCE_ALWAYS0 + channel;	
-#else
-		// search for an unused "always on" source
-		unsigned int i = DMAMUX_SOURCE_ALWAYS0;
-		for (i = DMAMUX_SOURCE_ALWAYS0;
-		  i < DMAMUX_SOURCE_ALWAYS0 + DMAMUX_NUM_SOURCE_ALWAYS; i++) {
-			unsigned int ch;
-			for (ch=0; ch < DMA_NUM_CHANNELS; ch++) {
-				if (mux[ch] == i) break;
-			}
-			if (ch >= DMA_NUM_CHANNELS) {
-				mux[channel] = (i | DMAMUX_ENABLE);
-				return;
-			}
-		}
-#endif
-#endif
+		volatile uint32_t *mux = &DMAMUX_CHCFG0 + channel;
+		//mux = (volatile uint32_t *)&(DMAMUX_CHCFG0) + channel;
+		*mux = 0;
+		*mux = DMAMUX_CHCFG_A_ON | DMAMUX_CHCFG_ENBL;
 	}
 
 	// Manually trigger the DMA channel.
@@ -535,6 +514,12 @@ public:
 		NVIC_ENABLE_IRQ(IRQ_DMA_CH0 + channel);
 	}
 
+	void attachInterrupt(void (*isr)(void), uint8_t prio) {
+		_VectorsRam[channel + IRQ_DMA_CH0 + 16] = isr;
+		NVIC_ENABLE_IRQ(IRQ_DMA_CH0 + channel);
+		NVIC_SET_PRIORITY(IRQ_DMA_CH0 + channel, prio);
+	}
+	
 	void detachInterrupt(void) {
 		NVIC_DISABLE_IRQ(IRQ_DMA_CH0 + channel);
 	}

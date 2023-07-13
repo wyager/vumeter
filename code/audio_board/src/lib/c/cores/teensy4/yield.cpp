@@ -31,24 +31,44 @@
 #include <Arduino.h>
 #include "EventResponder.h"
 
-extern uint8_t usb_enable_serial_event_processing; // from usb_inst.cpp
+uint8_t yield_active_check_flags = 0;
+
 
 void yield(void) __attribute__ ((weak));
 void yield(void)
 {
-	static uint8_t running=0;
+	const uint8_t check_flags = yield_active_check_flags;
+	if (!check_flags) return;	// nothing to do
 
+	// TODO: do nothing if called from interrupt
+
+	static uint8_t running=0;
 	if (running) return; // TODO: does this need to be atomic?
 	running = 1;
 
+	// USB Serial - Add hack to minimize impact...
+	if (check_flags & YIELD_CHECK_USB_SERIAL) {
+		if (Serial.available()) serialEvent();
+	}
 
-	// USB Serail - Add hack to minimize impact...
-	if (usb_enable_serial_event_processing && Serial.available()) serialEvent();
+#if defined(USB_DUAL_SERIAL) || defined(USB_TRIPLE_SERIAL)
+	if (check_flags & YIELD_CHECK_USB_SERIALUSB1) {
+		if (SerialUSB1.available()) serialEventUSB1();
+	}
+#endif
+#ifdef USB_TRIPLE_SERIAL
+	if (check_flags & YIELD_CHECK_USB_SERIALUSB2) {
+		if (SerialUSB2.available()) serialEventUSB2();
+	}
+#endif
 
 	// Current workaround until integrate with EventResponder.
-	if (HardwareSerial::serial_event_handlers_active) HardwareSerial::processSerialEvents();
+	if (check_flags & YIELD_CHECK_HARDWARE_SERIAL) {
+		HardwareSerial::processSerialEventsList();
+	}
 
 	running = 0;
-	EventResponder::runFromYield();
-	
+	if (check_flags & YIELD_CHECK_EVENT_RESPONDER) {
+		EventResponder::runFromYield();
+	}
 };

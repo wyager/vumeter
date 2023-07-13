@@ -6,13 +6,6 @@ extern void ResetHandler(void);
 extern unsigned long _estack;
 extern unsigned long _flashimagelen;
 
-__attribute__ ((section(".vectors"), used))
-const uint32_t vector_table[2] = {
-#if defined(__IMXRT1062__)
-	0x20010000, // 64K DTCM for boot, ResetHandler configures stack after ITCM/DTCM setup
-#endif
-	(uint32_t)&ResetHandler
-};
 
 
 __attribute__ ((section(".bootdata"), used))
@@ -23,15 +16,19 @@ const uint32_t BootData[3] = {
 };
 
 
+__attribute__ ((section(".csf"), used))
+const uint32_t hab_csf[768];	// placeholder for HAB signature
+
+
 __attribute__ ((section(".ivt"), used))
 const uint32_t ImageVectorTable[8] = {
-	0x402000D1,		// header
-	(uint32_t)vector_table, // docs are wrong, needs to be vec table, not start addr
+	0x432000D1,		// header
+	(uint32_t)&ResetHandler,// program entry
 	0,			// reserved
 	0,			// dcd
 	(uint32_t)BootData,	// abs address of boot data
 	(uint32_t)ImageVectorTable, // self
-	0,			// command sequence file
+	(uint32_t)hab_csf,	// command sequence file
 	0			// reserved
 };
 
@@ -42,7 +39,7 @@ uint32_t FlexSPI_NOR_Config[128] = {
 	0x42464346,		// Tag				0x00
 	0x56010000,		// Version
 	0,			// reserved
-	0x00020101,		// columnAdressWidth,dataSetupTime,dataHoldTime,readSampleClkSrc
+	0x00030301,		// columnAdressWidth,dataSetupTime,dataHoldTime,readSampleClkSrc
 
 	0x00000000,		// waitTimeCfgCommands,-,deviceModeCfgEnable
 	0,			// deviceModeSeq
@@ -60,11 +57,19 @@ uint32_t FlexSPI_NOR_Config[128] = {
 	0,
 
 	0x00000000,		// controllerMiscOption		0x40
-	0x00030401,		// lutCustomSeqEnable,serialClkFreq,sflashPadType,deviceType
+	0x00080401,		// lutCustomSeqEnable,serialClkFreq,sflashPadType,deviceType
 	0,			// reserved
 	0,			// reserved
 
+#if defined(ARDUINO_TEENSY40)
 	0x00200000,		// sflashA1Size			0x50
+#elif defined(ARDUINO_TEENSY41)
+	0x00800000,		// sflashA1Size			0x50
+#elif defined(ARDUINO_TEENSY_MICROMOD)
+	0x01000000,		// sflashA1Size			0x50
+#else
+#error "Unknow flash chip size";
+#endif
 	0,			// sflashA2Size
 	0,			// sflashB1Size
 	0,			// sflashB2Size

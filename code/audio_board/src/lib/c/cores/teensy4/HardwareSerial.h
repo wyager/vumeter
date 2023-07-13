@@ -92,6 +92,13 @@
 #define SERIAL_8N2_RXINV (SERIAL_8N1_RXINV | SERIAL_2STOP_BITS)
 #define SERIAL_8N2_TXINV (SERIAL_8N1_TXINV | SERIAL_2STOP_BITS)
 #define SERIAL_8N2_RXINV_TXINV (SERIAL_8N1_RXINV_TXINV | SERIAL_2STOP_BITS)
+
+// Half duplex support
+#define SERIAL_HALF_DUPLEX 0x200
+#define SERIAL_7E1_HALF_DUPLEX (SERIAL_7E1 | SERIAL_HALF_DUPLEX)
+#define SERIAL_7O1_HALF_DUPLEX (SERIAL_7O1 | SERIAL_HALF_DUPLEX)
+#define SERIAL_8N1_HALF_DUPLEX (SERIAL_8N1 | SERIAL_HALF_DUPLEX)
+
 // bit0: parity, 0=even, 1=odd
 // bit1: parity, 0=disable, 1=enable
 // bit2: mode, 1=9bit, 0=8bit
@@ -101,6 +108,8 @@
 // bit6: unused
 // bit7: actual data goes into 9th bit
 
+// bit8: 2 stop bits 
+// bit9: Half Duplex Mode
 
 #ifdef __cplusplus
 #include "Stream.h"
@@ -120,12 +129,27 @@ extern "C" {
 	extern void IRQHandler_Serial5();
 	extern void IRQHandler_Serial6();
 	extern void IRQHandler_Serial7();
-	#if defined(__IMXRT1052__)   
+	#if defined(ARDUINO_TEENSY41)   
 	extern void IRQHandler_Serial8();
 	#endif
 }
 
-typedef void(*SerialEventCheckingFunctionPointer)();
+//===================================================================
+// Should find a good home for this
+// Map IO pin to XBar pin... 
+//===================================================================
+// BUGBUG - find a good home
+typedef struct _pin_to_xbar_info{
+	const uint8_t 		pin;		// The pin number
+	const uint8_t		xbar_in_index; // What XBar input index. 
+	const uint32_t 		mux_val;	// Value to set for mux;
+	volatile uint32_t	*select_input_register; // Which register controls the selection
+	const uint32_t		select_val;	// Value for that selection
+} pin_to_xbar_info_t;
+
+extern const pin_to_xbar_info_t pin_to_xbar_info[];
+extern const uint8_t count_pin_to_xbar_info;
+
 
 class HardwareSerial : public Stream
 {
@@ -143,7 +167,7 @@ public:
 		uint8_t serial_index;	// which object are we? 0 based
 		IRQ_NUMBER_t irq;
 		void (*irq_handler)(void);
-		void (*serial_event_handler_check)(void);
+		void (* _serialEvent)(void);
 		volatile uint32_t &ccm_register;
 		const uint32_t ccm_value;
 		pin_info_t rx_pins[cnt_rx_pins];
@@ -153,6 +177,7 @@ public:
 		const uint16_t irq_priority;
 		const uint16_t rts_low_watermark;
 		const uint16_t rts_high_watermark;
+		const uint8_t xbar_out_lpuartX_trig_input;
 	} hardware_t;
 public:
 	constexpr HardwareSerial(IMXRT_LPUART_t *myport, const hardware_t *myhardware, 
@@ -162,36 +187,81 @@ public:
 		tx_buffer_(_tx_buffer), rx_buffer_(_rx_buffer), tx_buffer_size_(_tx_buffer_size),  rx_buffer_size_(_rx_buffer_size),
 		tx_buffer_total_size_(_tx_buffer_size), rx_buffer_total_size_(_rx_buffer_size) {
 	}
+	// Initialize hardware serial port with baud rate and data format.  For a list
+	// of all supported formats, see https://www.pjrc.com/teensy/td_uart.html
 	void begin(uint32_t baud, uint16_t format=0);
 	void end(void);
-
+	// Returns the number of bytes which have been received and
+	// can be fetched with read() or readBytes().
 	virtual int available(void);
+	// Returns the next received byte, but does not remove it from the receive
+	// buffer.  Returns -1 if nothing has been received.
 	virtual int peek(void);
+	// Wait for all data written by print() or write() to actually transmit.
 	virtual void flush(void);
+	// Transmit a single byte
 	virtual size_t write(uint8_t c);
+	// Reads the next received byte, or returns -1 if nothing has been received.
 	virtual int read(void);
-
+	// Configures a digital pin to be HIGH while transmitting.  Typically this
+	// pin is used to control the DE and RE' pins of an 8 pin RS485 transceiver
+	// chip, which transmits when DE is high and receives when RE' is low.
 	void transmitterEnable(uint8_t pin);
+	// Configure the serial hardware to receive with an alternate pin.  This
+	// function may be called before begin(baud) so the default receive pin
+	// is never used, or may be called while the serial hardware is running.  Only
+	// specific pins are supported.  https://www.pjrc.com/teensy/td_uart.html
 	void setRX(uint8_t pin);
+	// Configure the serial hardware to transmit with an alternate pin.  This
+	// function may be called before begin(baud) so the default transmit pin
+	// is never used, or may be called while the serial hardware is running.  Only
+	// specific pins are supported.  https://www.pjrc.com/teensy/td_uart.html
 	void setTX(uint8_t pin, bool opendrain=false);
+	// Configure RTS flow control.  The pin will be LOW when Teensy is able to
+	// receive more data, or HIGH when the serial device should pause transmission.
+	// All digital pins are supported.
 	bool attachRts(uint8_t pin);
+	// Configure CTS flow control.  Teensy will transmit when this pin is LOw
+	// and will pause transmission when the pin is HIGH.  Only specific pins are
+	// supported.  See https://www.pjrc.com/teensy/td_uart.html
 	bool attachCts(uint8_t pin);
+	// // Discard all received data which has not been read.
 	void clear(void);
+	// Returns the number of bytes which may be transmitted by write() or print()
+	// without waiting.  Typically programs which must maintain rapid checking
+	// and response to sensors use availableForWrite() to decide whether to
+	// transmit.
 	int availableForWrite(void);
-	void addStorageForRead(void *buffer, size_t length);
-	void addStorageForWrite(void *buffer, size_t length);
+	// Increase the amount of buffer memory between reception of bytes by the
+	// serial hardware and the available() and read() functions. This is useful
+	// when your program must spend lengthy times performing other work, like
+	// writing to a SD card, before it can return to reading the incoming serial
+	// data.  The buffer array must be a global or static variable.
+	void addMemoryForRead(void *buffer, size_t length);
+	// Increase the amount of buffer memory between print(), write() and actual
+	// hardware serial transmission. This can be useful when your program needs
+	// to print or write a large amount of data, without waiting.  The buffer
+	// array must be a global or static variable.
+	void addMemoryForWrite(void *buffer, size_t length);
+	void addStorageForRead(void *buffer, size_t length) __attribute__((deprecated("addStorageForRead was renamed to addMemoryForRead"))){
+		addMemoryForRead(buffer, length);
+	}
+	void addStorageForWrite(void *buffer, size_t length) __attribute__((deprecated("addStorageForWrite was renamed to addMemoryForWrite"))){
+		addMemoryForWrite(buffer, length);
+	}
 	size_t write9bit(uint32_t c);
 	
 	// Event Handler functions and data
-	void enableSerialEvents();
-	void disableSerialEvents();
-	static void processSerialEvents();
 	static uint8_t serial_event_handlers_active;
 
 	using Print::write; 
+	// Transmit a single byte
 	size_t write(unsigned long n) { return write((uint8_t)n); }
+	// Transmit a single byte
 	size_t write(long n) { return write((uint8_t)n); }
+	// Transmit a single byte
 	size_t write(unsigned int n) { return write((uint8_t)n); }
+	// Transmit a single byte
 	size_t write(int n) { return write((uint8_t)n); }
 
 	// Only overwrite some of the virtualWrite functions if we are going to optimize them over Print version
@@ -204,11 +274,18 @@ public:
 	*/
 
 	operator bool()			{ return true; }
+
+	static inline void processSerialEventsList() {
+		for (uint8_t i = 0; i < s_count_serials_with_serial_events; i++) {
+			s_serials_with_serial_events[i]->doYieldCode();
+		}
+	}
 private:
 	IMXRT_LPUART_t * const port;
 	const hardware_t * const hardware;
 	uint8_t				rx_pin_index_ = 0x0;	// default is always first item
 	uint8_t				tx_pin_index_ = 0x0;
+	uint8_t				half_duplex_mode_ = 0; // are we in half duplex mode?
 
 	volatile BUFTYPE 	*tx_buffer_;
 	volatile BUFTYPE 	*rx_buffer_;
@@ -243,34 +320,55 @@ private:
 	friend void IRQHandler_Serial5();
 	friend void IRQHandler_Serial6();
 	friend void IRQHandler_Serial7();
-	#if defined(__IMXRT1052__)   
+	#if defined(ARDUINO_TEENSY41)   
 	friend void IRQHandler_Serial8();
-	static SerialEventCheckingFunctionPointer serial_event_handler_checks[8];
+	static HardwareSerial 	*s_serials_with_serial_events[8];
 	#else	
-	static SerialEventCheckingFunctionPointer serial_event_handler_checks[7];
+	static HardwareSerial 	*s_serials_with_serial_events[7];
 	#endif
+	static uint8_t 			s_count_serials_with_serial_events;
+	void addToSerialEventsList(); 
+	inline void doYieldCode()  {
+		if (available()) (*hardware->_serialEvent)();
+	}
 
 
 
 };
+// Serial1 hardware serial port for pins RX1 and TX1.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial1;
+// Serial2 hardware serial port for pins RX2 and TX2.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial2;
+// Serial3 hardware serial port for pins RX3 and TX3.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial3;
+// Serial4 hardware serial port for pins RX4 and TX4.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial4;
+// Serial5 hardware serial port for pins RX5 and TX5.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial5;
+// Serial6 hardware serial port for pins RX6 and TX6.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial6;
+// Serial7 hardware serial port for pins RX7 and TX7.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial7;
-extern void serialEvent1(void);
-extern void serialEvent2(void);
-extern void serialEvent3(void);
-extern void serialEvent4(void);
-extern void serialEvent5(void);
-extern void serialEvent6(void);
-extern void serialEvent7(void);
+extern void serialEvent1(void) __attribute__((weak));
+extern void serialEvent2(void) __attribute__((weak));
+extern void serialEvent3(void) __attribute__((weak));
+extern void serialEvent4(void) __attribute__((weak));
+extern void serialEvent5(void) __attribute__((weak));
+extern void serialEvent6(void) __attribute__((weak));
+extern void serialEvent7(void) __attribute__((weak));
 
-	#if defined(__IMXRT1052__)   
+#if defined(ARDUINO_TEENSY41)
+// Serial8 hardware serial port for pins RX8 and TX8.  More detail at
+// https://www.pjrc.com/teensy/td_uart.html
 extern HardwareSerial Serial8;
-extern void serialEvent8(void);
+extern void serialEvent8(void) __attribute__((weak));
 #endif
 
 

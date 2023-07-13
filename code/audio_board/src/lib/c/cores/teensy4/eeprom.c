@@ -38,8 +38,17 @@
 #include <string.h>
 #include "debug/printf.h"
 
+#if defined(ARDUINO_TEENSY40)
 #define FLASH_BASEADDR 0x601F0000
 #define FLASH_SECTORS  15
+#elif defined(ARDUINO_TEENSY41)
+#define FLASH_BASEADDR 0x607C0000
+#define FLASH_SECTORS  63
+#elif defined(ARDUINO_TEENSY_MICROMOD)
+#define FLASH_BASEADDR 0x60FC0000
+#define FLASH_SECTORS  63
+#endif
+
 
 #if E2END > (255*FLASH_SECTORS-1)
 #error "E2END is set larger than the maximum possible EEPROM size"
@@ -48,8 +57,11 @@
 // Conversation about how this code works & what the upper limits are
 // https://forum.pjrc.com/threads/57377?p=214566&viewfull=1#post214566
 
-static void flash_write(void *addr, const void *data, uint32_t len);
-static void flash_erase_sector(void *addr);
+// To be called from LittleFS_Program, any other use at your own risk!
+void eepromemu_flash_write(void *addr, const void *data, uint32_t len);
+void eepromemu_flash_erase_sector(void *addr);
+void eepromemu_flash_erase_32K_block(void *addr);
+void eepromemu_flash_erase_64K_block(void *addr);
 
 static uint8_t initialized=0;
 static uint16_t sector_index[FLASH_SECTORS];
@@ -118,7 +130,7 @@ void eeprom_write_byte(uint8_t *addr_ptr, uint8_t data)
 	if (sector_index[sector] < 2048) {
 		//printf("ee_wr, writing\n");
 		uint16_t newdata = offset | (data << 8);
-		flash_write(end, &newdata, 2);
+		eepromemu_flash_write(end, &newdata, 2);
 		sector_index[sector] = sector_index[sector] + 1;
 	} else {
 		//printf("ee_wr, erase then write\n");
@@ -131,14 +143,14 @@ void eeprom_write_byte(uint8_t *addr_ptr, uint8_t data)
 		}
 		buf[offset] = data;
 		p = (uint16_t *)(FLASH_BASEADDR + sector * 4096);
-		flash_erase_sector(p);
+		eepromemu_flash_erase_sector(p);
 		index = 0;
 		for (i=0; i < 256; i++) {
 			if (buf[i] != 0xFF) {
 				// TODO: combining these to larger write
 				// would (probably) be more efficient
 				uint16_t newval = i | (buf[i] << 8);
-				flash_write(p + index, &newval, 2);
+				eepromemu_flash_write(p + index, &newval, 2);
 				index = index + 1;
 			}
 		}
@@ -221,10 +233,9 @@ static void flash_wait()
 		FLEXSPI_IPCR0 = 0;
 		FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15) | FLEXSPI_IPCR1_IDATSZ(1);
 		FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
-		while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) {
-			asm("nop");
-		}
+		while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) {;}
 		FLEXSPI_INTR = FLEXSPI_INTR_IPCMDDONE;
+		asm("":::"memory");
 		status = *(uint8_t *)&FLEXSPI_RFDR0;
 	} while (status & 1);
 	FLEXSPI_MCR0 |= FLEXSPI_MCR0_SWRESET; // purge stale data from FlexSPI's AHB FIFO
@@ -233,7 +244,7 @@ static void flash_wait()
 }
 
 // write bytes into flash memory (which is already erased to 0xFF)
-static void flash_write(void *addr, const void *data, uint32_t len)
+void eepromemu_flash_write(void *addr, const void *data, uint32_t len)
 {
 	__disable_irq();
 	FLEXSPI_LUTKEY = FLEXSPI_LUTKEY_VALUE;
@@ -251,7 +262,7 @@ static void flash_write(void *addr, const void *data, uint32_t len)
 	FLEXSPI_LUT60 = LUT0(CMD_SDR, PINS1, 0x32) | LUT1(ADDR_SDR, PINS1, 24); // 32 = quad write
 	FLEXSPI_LUT61 = LUT0(WRITE_SDR, PINS4, 1);
 	FLEXSPI_IPTXFCR = FLEXSPI_IPTXFCR_CLRIPTXF; // clear tx fifo
-	FLEXSPI_IPCR0 = (uint32_t)addr & 0x001FFFFF;
+	FLEXSPI_IPCR0 = (uint32_t)addr & 0x00FFFFFF;
 	FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15) | FLEXSPI_IPCR1_IDATSZ(len);
 	FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
 	const uint8_t *src = (const uint8_t *)data;
@@ -273,7 +284,7 @@ static void flash_write(void *addr, const void *data, uint32_t len)
 }
 
 // erase a 4K sector
-static void flash_erase_sector(void *addr)
+void eepromemu_flash_erase_sector(void *addr)
 {
 	__disable_irq();
 	FLEXSPI_LUTKEY = FLEXSPI_LUTKEY_VALUE;
@@ -289,7 +300,7 @@ static void flash_erase_sector(void *addr)
 	while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) ; // wait
 	FLEXSPI_INTR = FLEXSPI_INTR_IPCMDDONE;
 	FLEXSPI_LUT60 = LUT0(CMD_SDR, PINS1, 0x20) | LUT1(ADDR_SDR, PINS1, 24); // 20 = sector erase
-	FLEXSPI_IPCR0 = (uint32_t)addr & 0x001FF000;
+	FLEXSPI_IPCR0 = (uint32_t)addr & 0x00FFF000;
 	FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15);
 	FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
 	while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) ; // wait
@@ -297,3 +308,50 @@ static void flash_erase_sector(void *addr)
 	flash_wait();
 }
 
+void eepromemu_flash_erase_32K_block(void *addr)
+{
+	__disable_irq();
+	FLEXSPI_LUTKEY = FLEXSPI_LUTKEY_VALUE;
+	FLEXSPI_LUTCR = FLEXSPI_LUTCR_UNLOCK;
+	FLEXSPI_LUT60 = LUT0(CMD_SDR, PINS1, 0x06); // 06 = write enable
+	FLEXSPI_LUT61 = 0;
+	FLEXSPI_LUT62 = 0;
+	FLEXSPI_LUT63 = 0;
+	FLEXSPI_IPCR0 = 0;
+	FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15);
+	FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
+	arm_dcache_delete((void *)((uint32_t)addr & 0xFFFF8000), 32768); // purge data from cache
+	while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) ; // wait
+	FLEXSPI_INTR = FLEXSPI_INTR_IPCMDDONE;
+	FLEXSPI_LUT60 = LUT0(CMD_SDR, PINS1, 0x52) | LUT1(ADDR_SDR, PINS1, 24); // 20 = sector erase
+	FLEXSPI_IPCR0 = (uint32_t)addr & 0x00FF8000;
+	FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15);
+	FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
+	while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) ; // wait
+	FLEXSPI_INTR = FLEXSPI_INTR_IPCMDDONE;
+	flash_wait();
+}
+
+void eepromemu_flash_erase_64K_block(void *addr)
+{
+	__disable_irq();
+	FLEXSPI_LUTKEY = FLEXSPI_LUTKEY_VALUE;
+	FLEXSPI_LUTCR = FLEXSPI_LUTCR_UNLOCK;
+	FLEXSPI_LUT60 = LUT0(CMD_SDR, PINS1, 0x06); // 06 = write enable
+	FLEXSPI_LUT61 = 0;
+	FLEXSPI_LUT62 = 0;
+	FLEXSPI_LUT63 = 0;
+	FLEXSPI_IPCR0 = 0;
+	FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15);
+	FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
+	arm_dcache_delete((void *)((uint32_t)addr & 0xFFFF0000), 65536); // purge data from cache
+	while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) ; // wait
+	FLEXSPI_INTR = FLEXSPI_INTR_IPCMDDONE;
+	FLEXSPI_LUT60 = LUT0(CMD_SDR, PINS1, 0xD8) | LUT1(ADDR_SDR, PINS1, 24); // 20 = sector erase
+	FLEXSPI_IPCR0 = (uint32_t)addr & 0x00FF0000;
+	FLEXSPI_IPCR1 = FLEXSPI_IPCR1_ISEQID(15);
+	FLEXSPI_IPCMD = FLEXSPI_IPCMD_TRG;
+	while (!(FLEXSPI_INTR & FLEXSPI_INTR_IPCMDDONE)) ; // wait
+	FLEXSPI_INTR = FLEXSPI_INTR_IPCMDDONE;
+	flash_wait();
+}

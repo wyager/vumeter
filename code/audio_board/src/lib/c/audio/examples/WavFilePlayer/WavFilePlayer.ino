@@ -36,16 +36,19 @@ AudioPlaySdWav           playWav1;
 AudioOutputI2S           audioOutput;
 //AudioOutputSPDIF       audioOutput;
 //AudioOutputAnalog      audioOutput;
+//On Teensy LC, use this for the Teensy Audio Shield:
+//AudioOutputI2Sslave    audioOutput;
+
 AudioConnection          patchCord1(playWav1, 0, audioOutput, 0);
 AudioConnection          patchCord2(playWav1, 1, audioOutput, 1);
 AudioControlSGTL5000     sgtl5000_1;
 
 // Use these with the Teensy Audio Shield
 #define SDCARD_CS_PIN    10
-#define SDCARD_MOSI_PIN  7
-#define SDCARD_SCK_PIN   14
+#define SDCARD_MOSI_PIN  7   // Teensy 4 ignores this, uses pin 11
+#define SDCARD_SCK_PIN   14  // Teensy 4 ignores this, uses pin 13
 
-// Use these with the Teensy 3.5 & 3.6 SD card
+// Use these with the Teensy 3.5 & 3.6 & 4.1 SD card
 //#define SDCARD_CS_PIN    BUILTIN_SDCARD
 //#define SDCARD_MOSI_PIN  11  // not actually used
 //#define SDCARD_SCK_PIN   13  // not actually used
@@ -89,7 +92,7 @@ void playFile(const char *filename)
   playWav1.play(filename);
 
   // A brief delay for the library read WAV info
-  delay(5);
+  delay(25);
 
   // Simply wait for the file to finish playing.
   while (playWav1.isPlaying()) {

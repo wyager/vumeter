@@ -131,7 +131,7 @@ inline void String::init(void)
 	buffer = NULL;
 	capacity = 0;
 	len = 0;
-	flags = 0;
+	//flags = 0;
 }
 
 unsigned char String::reserve(unsigned int size)
@@ -197,16 +197,8 @@ String & String::copy(const __FlashStringHelper *pgmstr)
 
 void String::move(String &rhs)
 {
-	if (buffer) {
-		if (capacity >= rhs.len) {
-			strcpy(buffer, rhs.buffer);
-			len = rhs.len;
-			rhs.len = 0;
-			return;
-		} else {
-			free(buffer);
-		}
-	}
+	if (&rhs == this) return;
+	if (buffer) free(buffer);
 	buffer = rhs.buffer;
 	capacity = rhs.capacity;
 	len = rhs.len;
