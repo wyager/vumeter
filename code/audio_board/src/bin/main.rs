@@ -1,70 +1,53 @@
 #![no_std]
 #![no_main]
 
-
 extern crate panic_halt;
 extern crate vumeter_lib as vu;
 
 #[macro_use(block)]
 extern crate nb;
 
-// use hal::clock::GenericClockController;
-// use hal::pac::{Peripherals};
-// use hal::prelude::*;
+use imxrt_rt::entry;
+use cortex_m::asm;
+use teensy4_bsp as bsp;
+use bsp::board;
 
+use cortex_m::interrupt;
+use imxrt_rt::interrupt;
 
-use biquad::frequency::*;
-// use boardlib;
-
-// use vu::protocol::{ParseState,PWM};
-use vu::protocol as pkt;
-use pkt::Pkt;
 use vu::bandpass as bp;
 use vu::audio_hw::*;
 use vu::shared::*;
-use teensy4_bsp as bsp;
-use bsp::rt::entry;
-use imxrt1062_pac;
 
-use log::info;
-
-use imxrt1062_rt as rt;
-use teensy4_bsp::interrupt;
-use teensy4_bsp::LED;
-
-use rt::interrupt;
 use embedded_hal::serial::{Read,Write};
 use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::digital::v2::ToggleableOutputPin;
-use core::time::Duration;
 
 use boardlib::{spdif,uart,switch,timer};
 use cortex_m::asm::wfi;
 
 #[interrupt]
-fn SPDIF() {
+unsafe fn SPDIF() {
     unsafe{spdif::spdif_isr()};
 }
 
 #[interrupt]
-fn DMA3_DMA19() {
+unsafe fn DMA3_DMA19() {
     unsafe{spdif::spdif_dma_isr()};
 }
 
 #[interrupt]
-fn LPUART3() {
+unsafe fn LPUART3() {
     unsafe{uart::uart_isr()};
 }
 
 #[interrupt]
-fn PIT() {
+unsafe fn PIT() {
     unsafe{timer::pit_isr()};
 }
 
 #[entry]
 fn main() -> ! {
-    // WARNING: Must leave this uncommented
-    let mut peripherals = bsp::Peripherals::take().unwrap();
+    let mut resources = board::t40(board::instances());
     let mut led = switch::Led::initialize().unwrap();
     led.set(true);
     let mut spdif = spdif::SPDIF::initialize().unwrap();
@@ -77,15 +60,8 @@ fn main() -> ! {
 
     // Enabling logging increases current usage by about 10mA at 528MHz
     // peripherals.log.init(Default::default());
-    bsp::delay(200);
+    asm::delay(200);
     
-    // Switch from 528 MHz to 600 (increases power consumption not quite linearly)
-    // Must add a fudge factor to baud rate and sample rate
-    // For some reason this seems to be required to get UART to work. Oh well. Extra speed can't hurt I guess
-    peripherals.ccm
-        .pll1
-        .set_arm_clock(bsp::hal::ccm::PLL1::ARM_HZ, &mut peripherals.ccm.handle, &mut peripherals.dcdc);
-
     // Set up some memory for signal processing
     const MAX_BANDS : usize = 32;
     let mut l = [bp::BandState::default(); MAX_BANDS];
@@ -101,7 +77,7 @@ fn main() -> ! {
     let mut tx_buf = RingBuf::new(&mut tx_buf);
 
     let mut timer = timer::Timer::initialize(25_000).unwrap(); // 25ms
-
+    
     loop {
         // Flush major serial buffer to minor buffer until we run out of space in minor buffer
         while let Some(()) = tx_buf.with_front(|byte| uart.write(byte).ok()) {}

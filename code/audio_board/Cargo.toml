@@ -9,12 +9,15 @@ keywords = ["no-std", "arm", "cortex-m", "embedded-hal"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cortex-m = "0.6.7"
+cortex-m = "0.7.7"
 embedded-hal = "0.2.7"
 nb = "1.1.0"
-imxrt1062-pac = { git = "https://github.com/mciantyre/teensy4-rs.git", rev = "cd70737"}
-imxrt1062-rt = { git = "https://github.com/mciantyre/teensy4-rs.git", rev = "cd70737"}
-teensy4-bsp = { git = "https://github.com/mciantyre/teensy4-rs.git", rev = "cd70737"}
+imxrt1062-pac = "0.2.1"
+imxrt-hal = "0.5.3"
+imxrt-ral = "0.5.1"
+cortex-m-interrupt = "0.2.0"
+imxrt-rt = { version = "0.1.1", features = ["device"] }
+teensy4-bsp = "0.4.2"
 log = { version = "0.4.19", features = ["release_max_level_info"] }
 panic-halt = "0.2.0"
 libm = "0.2.7"
@@ -24,6 +27,7 @@ volatile="0.5.1"
 
 [build-dependencies]
 cc = "1.0.79"
+#imxrt-rt = { version = "0.1.1", features = ["device"] }
 
 [dependencies.vumeter_lib]
 path = "../vumeter_lib"
