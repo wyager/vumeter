@@ -1,5 +1,5 @@
 [package]
-name = "audio-board-2"
+name = "audio_board_h"
 version = "0.1.0"
 authors = ["William Yager <will@yager.io>"]
 edition = "2021"
@@ -7,19 +7,24 @@ edition = "2021"
 [dependencies]
 cortex-m = "0.7"
 embedded-hal = "0.2"
+teensy4-bsp = { version = "0.4.2", features = ["rt",  "usb-logging"] }
 # Remove me if you don't want logging.
 log = "0.4"
 teensy4-panic = "0.2"
 
-[dependencies.teensy4-bsp]
-version = "0.4"
-features = [
-    # Use the BSP's runtime. This lets you write your
-    # `main()` function.
-    "rt",
-    # Remove me if you don't want logging.
-    "usb-logging",
-]
+cty = "0.2.2"
+nb = "1.1.0"
+
+[build-dependencies]
+cc = "1.0.79"
+
+[dependencies.vumeter_lib]
+path = "../vumeter_lib"
+version = "~0.1"
+
+[lib]
+name = "boardlib"
+#path = "./lib.rs"
 
 # Don't optimize build dependencies, like proc macros.
 # Helps with build times.

@@ -1,3 +1,5 @@
 #!/bin/bash
-cargo objcopy --release -- -O ihex audio-board.hex
-teensy_loader_cli --mcu=TEENSY40 -w -v audio-board.hex
+cargo objcopy --release -- -O ihex target/thumbv7em-none-eabihf/release/audio_board_h
+arm-none-eabi-objcopy -O ihex -R .eeprom ./target/thumbv7em-none-eabihf/release/audio_board_h ./audio_board_h.hex
+
+./teensy_loader_cli.exe --mcu=TEENSY40 -w -v ./audio_board_h.hex

@@ -5,17 +5,17 @@ use std::path::Path;
 extern crate cc;
 
 static CFLAGS: &[&str] = &[
-    "-c",
-    "-Wall",
-    "-MMD",
-    "-g",
-    "-O2",
-    "-ffunction-sections",
-    "-fdata-sections",
-    "-mcpu=cortex-m7",
-    "-mthumb",
-    "-mfloat-abi=hard",
-    "-mfpu=fpv5-d16",
+    "-c", 
+    "-Wall", 
+    "-MMD", 
+    "-g", 
+    "-O2", 
+    "-ffunction-sections", 
+    "-fdata-sections", 
+    "-mcpu=cortex-m7", 
+    "-mthumb", 
+    "-mfloat-abi=hard", 
+    "-mfpu=fpv5-d16", 
     "-std=gnu11",
 ];
 /// Preprocessor flags
