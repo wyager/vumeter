@@ -98,29 +98,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cortex-m-interrupt"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eecfdb6a57f69708ed50cc70f22e42585d667e44b66fa67d8053231dbaf06d2f"
-dependencies = [
- "cortex-m 0.7.7",
- "cortex-m-interrupt-macro",
- "cortex-m-rt",
-]
-
-[[package]]
-name = "cortex-m-interrupt-macro"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33f4f118b7d9abde70bfb02e202afb2851ef59bada2de1632c56e266754b0b11"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "cortex-m-rt"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1224,10 +1201,8 @@ dependencies = [
  "biquad",
  "cc",
  "cortex-m 0.7.7",
- "cortex-m-interrupt",
  "cty",
  "embedded-hal",
- "imxrt-hal",
  "imxrt-ral",
  "imxrt-rt",
  "imxrt1062-pac",

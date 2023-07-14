@@ -10,12 +10,10 @@ keywords = ["no-std", "arm", "cortex-m", "embedded-hal"]
 
 [dependencies]
 cortex-m = "0.7.7"
+imxrt-ral = "0.5.1"
+imxrt1062-pac = "0.2.1"
 embedded-hal = "0.2.7"
 nb = "1.1.0"
-imxrt1062-pac = "0.2.1"
-imxrt-hal = "0.5.3"
-imxrt-ral = "0.5.1"
-cortex-m-interrupt = "0.2.0"
 imxrt-rt = { version = "0.1.1", features = ["device"] }
 teensy4-bsp = "0.4.2"
 log = { version = "0.4.19", features = ["release_max_level_info"] }

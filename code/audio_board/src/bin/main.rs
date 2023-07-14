@@ -12,8 +12,8 @@ use cortex_m::asm;
 use teensy4_bsp as bsp;
 use bsp::board;
 
-use cortex_m::interrupt;
 use imxrt_rt::interrupt;
+use imxrt1062_pac::interrupt;
 
 use vu::bandpass as bp;
 use vu::audio_hw::*;
@@ -27,12 +27,12 @@ use cortex_m::asm::wfi;
 
 #[interrupt]
 unsafe fn SPDIF() {
-    unsafe{spdif::spdif_isr()};
+    unsafe{boardlib::spdif::spdif_isr()};
 }
 
 #[interrupt]
 unsafe fn DMA3_DMA19() {
-    unsafe{spdif::spdif_dma_isr()};
+    unsafe{boardlib::spdif::spdif_dma_isr()};
 }
 
 #[interrupt]
@@ -56,6 +56,13 @@ fn main() -> ! {
     let mut pwr = switch::Pwr::initialize().unwrap();
     let mut sleep_pin = switch::SleepPin::initialize().unwrap();
 
+    // Enable the interrupts
+    unsafe {
+        cortex_m::peripheral::NVIC::unmask(imxrt_ral::Interrupt::SPDIF);
+        cortex_m::peripheral::NVIC::unmask(imxrt_ral::Interrupt::DMA3_DMA19);
+        cortex_m::peripheral::NVIC::unmask(imxrt_ral::Interrupt::LPUART3);
+        cortex_m::peripheral::NVIC::unmask(imxrt_ral::Interrupt::PIT);
+    }
     pwr.set(true);
 
     // Enabling logging increases current usage by about 10mA at 528MHz
