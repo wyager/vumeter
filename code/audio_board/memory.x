@@ -6,6 +6,10 @@ MEMORY
 	FLASH (rwx): ORIGIN = 0x60000000, LENGTH = 1984K
 }
 
+/* ===--- End imxrt-boot-header.x ---=== */
+__flexram_config = 0xFFAAAAAA;
+__imxrt_family = 1060;
+
 SECTIONS
 {
     .text.code : 
@@ -51,3 +55,4 @@ SECTIONS
 		. = ALIGN(32);
 	} > RAM
 }
+

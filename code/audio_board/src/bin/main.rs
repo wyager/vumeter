@@ -47,7 +47,7 @@ unsafe fn PIT() {
 
 #[entry]
 fn main() -> ! {
-    let mut resources = board::t40(board::instances());
+    let resources = board::t40(board::instances());
     let mut led = switch::Led::initialize().unwrap();
     led.set(true);
     let mut spdif = spdif::SPDIF::initialize().unwrap();
@@ -55,7 +55,7 @@ fn main() -> ! {
     let mut switch = switch::Switch::initialize().unwrap();
     let mut pwr = switch::Pwr::initialize().unwrap();
     let mut sleep_pin = switch::SleepPin::initialize().unwrap();
-
+ 
     // Enable the interrupts
     unsafe {
         cortex_m::peripheral::NVIC::unmask(imxrt_ral::Interrupt::SPDIF);

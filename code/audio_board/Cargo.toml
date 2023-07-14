@@ -2,10 +2,10 @@
 name = "vumeter_sound"
 version = "0.1.0"
 authors = ["will <will@yager.io>"]
-edition = "2018"
+edition = "2021"
 keywords = ["no-std", "arm", "cortex-m", "embedded-hal"]
 #bin.path = "bin"
-#build = "build.rs"
+build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
