@@ -1,7 +1,3 @@
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
 extern crate cc;
 
 

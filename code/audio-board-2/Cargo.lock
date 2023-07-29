@@ -6,11 +6,15 @@ version = 3
 name = "audio-board-2"
 version = "0.1.0"
 dependencies = [
+ "cc",
  "cortex-m",
+ "cty",
  "embedded-hal",
  "log",
+ "nb 0.1.3",
  "teensy4-bsp",
  "teensy4-panic",
+ "vumeter_lib",
 ]
 
 [[package]]
@@ -29,6 +33,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3baa8859d1a4c7411039a75c0599a4640ef1c9a8fc811e4325b00e6cfe0a55"
 
 [[package]]
+name = "biquad"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "820524f5e3e3add696ddf69f79575772e152c0e78e9f0370b56990a7e808ec3e"
+dependencies = [
+ "libm 0.1.4",
+]
+
+[[package]]
 name = "bitfield"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -39,6 +52,12 @@ name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+
+[[package]]
+name = "cc"
+version = "1.0.79"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50d30906286121d95be3d479533b458f87493b30a4b5f79a607db8f5d11aa91f"
 
 [[package]]
 name = "cfg-if"
@@ -84,6 +103,12 @@ name = "critical-section"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6548a0ad5d2549e111e1f6a11a6c2e2d00ce6a3dafe22948d67c2b443f775e52"
+
+[[package]]
+name = "cty"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
 name = "defmt"
@@ -228,6 +253,18 @@ dependencies = [
  "ral-registers",
  "usb-device",
 ]
+
+[[package]]
+name = "libm"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
+
+[[package]]
+name = "libm"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7012b1bbb0719e1097c47611d3898568c546d597c2e74d66f6087edd5233ff4"
 
 [[package]]
 name = "log"
@@ -451,4 +488,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ee8f19f9d74293faf70901bc20ad067dc1ad390d2cbf1e3f75f721ffee908b6"
 dependencies = [
  "vcell",
+]
+
+[[package]]
+name = "vumeter_lib"
+version = "0.1.0"
+dependencies = [
+ "biquad",
+ "libm 0.2.7",
+ "log",
 ]

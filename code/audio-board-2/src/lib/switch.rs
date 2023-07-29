@@ -1,8 +1,9 @@
+//use cty;
 use vumeter_lib::audio_hw::{SwitchEvent,Pin};
 //use SwitchEvent::*;
 //use Pin::*;
 
-//#[link(name = "libteensy")]
+#[link(name = "libteensy")]
 
 extern "C" {
     // fn copy_from_spdif_buffer(max : cty::uint32_t, l : *mut f32, r : *mut f32) -> cty::uint32_t;

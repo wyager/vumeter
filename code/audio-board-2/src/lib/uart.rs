@@ -1,11 +1,10 @@
 use cty;
-use nb;
 
 use embedded_hal::serial::{Read,Write};
 use nb::Result;
 use nb::Error::WouldBlock;
 
-//#[link(name = "libteensy")]
+#[link(name = "libteensy")]
 
 extern "C" {
     // fn copy_from_spdif_buffer(max : cty::uint32_t, l : *mut f32, r : *mut f32) -> cty::uint32_t;

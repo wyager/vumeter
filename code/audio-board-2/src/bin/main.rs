@@ -19,22 +19,22 @@ use cortex_m::prelude::{_embedded_hal_serial_Read, _embedded_hal_serial_Write};
 use boardlib::{spdif,uart,switch,timer};
 use cortex_m::asm::wfi;
 
-#[interrupt]
+#[bsp::rt::interrupt]
 fn SPDIF() {
     unsafe{spdif::spdif_isr()};
 }
 
-#[interrupt]
+#[bsp::rt::interrupt]
 fn DMA3_DMA19() {
     unsafe{spdif::spdif_dma_isr()};
 }
 
-#[interrupt]
+#[bsp::rt::interrupt]
 fn LPUART3() {
     unsafe{uart::uart_isr()};
 }
 
-#[interrupt]
+#[bsp::rt::interrupt]
 fn PIT() {
     unsafe{timer::pit_isr()};
 }
@@ -43,7 +43,7 @@ fn PIT() {
 fn main() -> ! {
     // These are peripheral instances. Let the board configure these for us.
     // This function can only be called once!
-    let instances = board::instances();
+    //let resources = board::t40(board::instances());
     let mut led = switch::Led::initialize().unwrap();
     led.set(true);
     let mut spdif = spdif::SPDIF::initialize().unwrap();
@@ -62,13 +62,11 @@ fn main() -> ! {
         // GPIO output.
         mut gpio2,
         ..
-    } = board::t40(instances);
+    } = board::t40(board::instances());
 
     // This configures the LED as a GPIO output.
     let led = board::led(&mut gpio2, pins.p13);
 
-    let mut counter: u32 = 0;
-    
     pwr.set(true);
 
     asm::delay(200);
@@ -87,9 +85,8 @@ fn main() -> ! {
     let mut tx_buf = RingBuf::new(&mut tx_buf);
 
     let mut timer = timer::Timer::initialize(25_000).unwrap(); // 25ms
-    
     loop {
-        led.toggle();
+        
         // Flush major serial buffer to minor buffer until we run out of space in minor buffer
         while let Some(()) = tx_buf.with_front(|byte| uart.write(byte).ok()) {}
         // Check for hardware events
@@ -97,13 +94,14 @@ fn main() -> ! {
         let spdif = spdif.read().map(Event::Audio);
         let timer = timer.elapsed().map(Event::Timer);
         let uart = uart.read().ok().map(Event::Rx);
-        
+
         if !timer.is_none() {
 
         }
         if switch.is_none() && spdif.is_none() && timer.is_none() && uart.is_none() {
             sleep_pin.set(true);
             wfi();
+            led.toggle();
             sleep_pin.set(false);
         } else {
             for evt in switch.into_iter().chain(spdif.into_iter()).chain(timer.into_iter()).chain(uart.into_iter()) {
@@ -112,4 +110,3 @@ fn main() -> ! {
         }
     }
 }
-

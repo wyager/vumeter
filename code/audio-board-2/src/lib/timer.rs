@@ -1,7 +1,8 @@
+//use cty;
 use vumeter_lib::audio_hw::TimerEvent;
 use TimerEvent::*;
 
-//#[link(name = "libteensy")]
+#[link(name = "libteensy")]
 
 extern "C" {
     pub fn pit_isr();

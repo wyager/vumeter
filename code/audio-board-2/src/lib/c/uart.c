@@ -132,7 +132,7 @@ void uart4_init(uint32_t baud) {
 
     CCM_CCGR0 |= CCM_CCGR0_LPUART3(CCM_CCGR_ON);
 
-    uint32_t fastio = IOMUXC_PAD_SRE | IOMUXC_PAD_DSE(3) | IOMUXC_PAD_SPEED(3);
+ //   uint32_t fastio = IOMUXC_PAD_SRE | IOMUXC_PAD_DSE(3) | IOMUXC_PAD_SPEED(3);
 
     *(portControlRegister(RX_PIN_NO)) = IOMUXC_PAD_DSE(7) | IOMUXC_PAD_PKE | IOMUXC_PAD_PUE | IOMUXC_PAD_PUS(3) | IOMUXC_PAD_HYS;
     *(portConfigRegister(RX_PIN_NO)) = RX_MUX_VAL;
@@ -237,7 +237,7 @@ size_t uart4_write(uint8_t c)
     uint32_t head, n;
     head = tx_buffer_head_;
     if (++head >= SERIAL4_TX_BUFFER_SIZE) head = 0;
-    while (tx_buffer_tail_ == head) {
+    while ((uint32_t)tx_buffer_tail_ == head) {
         int priority = nvic_execution_priority();
         if (priority <= IRQ_PRIORITY) {
             if ((IMXRT_LPUART3.STAT & LPUART_STAT_TDRE)) {
@@ -281,7 +281,7 @@ void uart_isr() {
                 newhead = head + 1;
 
                 if (newhead >= SERIAL4_RX_BUFFER_SIZE) newhead = 0;
-                if (newhead != rx_buffer_tail_) {
+                if (newhead != (uint32_t)rx_buffer_tail_) {
                     head = newhead;
                     rx_buffer4[head] = n;
                 }
