@@ -1,17 +1,22 @@
+use std::env;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 extern crate cc;
 
+
 static CFLAGS: &[&str] = &[
-    "-c", 
-    "-Wall", 
-    "-MMD", 
-    "-g", 
-    "-O2", 
-    "-ffunction-sections", 
-    "-fdata-sections", 
-    "-mcpu=cortex-m7", 
-    "-mthumb", 
-    "-mfloat-abi=hard", 
-    "-mfpu=fpv5-d16", 
+    "-c",
+    "-Wall",
+    "-MMD",
+    "-g",
+    "-O2",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-mcpu=cortex-m7",
+    "-mthumb",
+    "-mfloat-abi=hard",
+    "-mfpu=fpv5-d16",
     "-std=gnu11",
 ];
 /// Preprocessor flags
@@ -29,16 +34,16 @@ static CC: &str = "arm-none-eabi-gcc";
 static AR: &str = "arm-none-eabi-gcc-ar";
 
 fn main() {
-        let mut builder = cc::Build::new();
-        builder
-       .include("src/bin/c/cores/teensy4")
-       .include("src/bin/c/audio")
-       .file("src/bin/c/cores/teensy4/digital.c")
-       .file("src/bin/c/spdif.c")
-       .file("src/bin/c/timer.c")
-       .file("src/bin/c/switch.c")
-       .file("src/bin/c/led.c")
-       .file("src/bin/c/uart.c");
+    let mut builder = cc::Build::new();
+    builder
+       .include("src/lib/c/cores/teensy4")
+       .include("src/lib/c/audio")
+       .file("src/lib/c/cores/teensy4/digital.c")
+       .file("src/lib/c/spdif.c")
+       .file("src/lib/c/timer.c")
+       .file("src/lib/c/switch.c")
+       .file("src/lib/c/led.c")
+       .file("src/lib/c/uart.c");
     builder.compiler(CC);
     builder.archiver(AR);
     builder.no_default_flags(true);
@@ -47,10 +52,11 @@ fn main() {
     }
     builder.compile("libteensy");
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/bin/c/spdif.c");
-    println!("cargo:rerun-if-changed=src/bin/c/led.c");
-    println!("cargo:rerun-if-changed=src/bin/c/uart.c");
-    println!("cargo:rerun-if-changed=src/bin/c/timer.c");
-    println!("cargo:rerun-if-changed=src/bin/c/switch.c");
-    println!("cargo:rerun-if-changed=src/bin/c/cores/teensy4/digital.c");
+    println!("cargo:rerun-if-changed=src/lib/c/spdif.c");
+    println!("cargo:rerun-if-changed=src/lib/c/led.c");
+    println!("cargo:rerun-if-changed=src/lib/c/uart.c");
+    println!("cargo:rerun-if-changed=src/lib/c/timer.c");
+    println!("cargo:rerun-if-changed=src/lib/c/switch.c");
+    println!("cargo:rerun-if-changed=src/lib/c/cores/teensy4/digital.c");
+
 }

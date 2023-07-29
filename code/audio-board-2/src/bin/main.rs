@@ -1,10 +1,3 @@
-//! The starter code slowly blinks the LED, sets up
-//! USB logging, and creates a UART driver using pins
-//! 14 and 15. The UART baud rate is [`UART_BAUD`].
-//!
-//! Despite targeting the Teensy 4.0, this starter code
-//! also works on the Teensy 4.1.
-
 #![no_std]
 #![no_main]
 
@@ -20,10 +13,31 @@ use vu::bandpass as bp;
 use vu::audio_hw::*;
 use vu::shared::*;
 
+use teensy4_bsp::interrupt;
 use cortex_m::prelude::{_embedded_hal_serial_Read, _embedded_hal_serial_Write};
 
 use boardlib::{spdif,uart,switch,timer};
 use cortex_m::asm::wfi;
+
+#[interrupt]
+fn SPDIF() {
+    unsafe{spdif::spdif_isr()};
+}
+
+#[interrupt]
+fn DMA3_DMA19() {
+    unsafe{spdif::spdif_dma_isr()};
+}
+
+#[interrupt]
+fn LPUART3() {
+    unsafe{uart::uart_isr()};
+}
+
+#[interrupt]
+fn PIT() {
+    unsafe{timer::pit_isr()};
+}
 
 #[bsp::rt::entry]
 fn main() -> ! {
