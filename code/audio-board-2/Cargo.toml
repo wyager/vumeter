@@ -11,6 +11,9 @@ nb = "~0.1"
 log = "0.4"
 teensy4-panic = "0.2"
 cty = "~0.2.1"
+ssd1306 = "0.8.1"
+embedded-graphics = "0.8.1"
+volatile-register = "0.2.1"
 
 [dependencies.vumeter_lib]
 path = "../vumeter_lib"
