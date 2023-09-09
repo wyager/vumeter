@@ -7,9 +7,17 @@ edition = "2021"
 [dependencies]
 cortex-m = "0.7"
 embedded-hal = "0.2"
-# Remove me if you don't want logging.
+nb = "~0.1"
 log = "0.4"
 teensy4-panic = "0.2"
+cty = "~0.2.1"
+ssd1306 = "0.8.1"
+embedded-graphics = "0.8.1"
+volatile-register = "0.2.1"
+
+[dependencies.vumeter_lib]
+path = "../vumeter_lib"
+version = "~0.1"
 
 [dependencies.teensy4-bsp]
 version = "0.4"
@@ -20,6 +28,13 @@ features = [
     # Remove me if you don't want logging.
     "usb-logging",
 ]
+
+[lib]
+name = "boardlib"
+path = "src/lib/lib.rs"
+
+[build-dependencies]
+cc = "~1.0.48"
 
 # Don't optimize build dependencies, like proc macros.
 # Helps with build times.

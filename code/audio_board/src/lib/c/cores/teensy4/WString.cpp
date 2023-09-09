@@ -74,7 +74,7 @@ String::String(unsigned char c)
 String::String(const int value, unsigned char base)
 {
 	init();
-	char buf[18];
+	char buf[34];
 	itoa(value, buf, base);
 	*this = buf;
 }
@@ -82,7 +82,7 @@ String::String(const int value, unsigned char base)
 String::String(unsigned int value, unsigned char base)
 {
 	init();
-	char buf[17];
+	char buf[33];
   	utoa(value, buf, base);
 	*this = buf;
 }
@@ -100,6 +100,22 @@ String::String(unsigned long value, unsigned char base)
 	init();
 	char buf[33];
 	ultoa(value, buf, base);
+	*this = buf;
+}
+
+String::String(long long value, unsigned char base)
+{
+	init();
+	char buf[66];
+	lltoa(value, buf, base);
+	*this = buf;
+}
+
+String::String(unsigned long long value, unsigned char base)
+{
+	init();
+	char buf[65];
+	ulltoa(value, buf, base);
 	*this = buf;
 }
 
@@ -124,7 +140,7 @@ inline void String::init(void)
 	buffer = NULL;
 	capacity = 0;
 	len = 0;
-	flags = 0;
+	//flags = 0;
 }
 
 unsigned char String::reserve(unsigned int size)
@@ -174,16 +190,8 @@ String & String::copy(const char *cstr, unsigned int length)
 
 void String::move(String &rhs)
 {
-	if (buffer) {
-		if (capacity >= rhs.len) {
-			strcpy(buffer, rhs.buffer);
-			len = rhs.len;
-			rhs.len = 0;
-			return;
-		} else {
-			free(buffer);
-		}
-	}
+	if (&rhs == this) return;
+	if (buffer) free(buffer);
 	buffer = rhs.buffer;
 	capacity = rhs.capacity;
 	len = rhs.len;
@@ -312,6 +320,22 @@ String & String::append(unsigned long num)
 	return *this;
 }
 
+String & String::append(long long num)
+{
+	char buf[22];
+	lltoa(num, buf, 10);
+	append(buf, strlen(buf));
+	return *this;
+}
+
+String & String::append(unsigned long long num)
+{
+	char buf[21];
+	ulltoa(num, buf, 10);
+	append(buf, strlen(buf));
+	return *this;
+}
+
 String & String::append(float num)
 {
 	char buf[30];
@@ -383,6 +407,20 @@ StringSumHelper & operator + (const StringSumHelper &lhs, long num)
 }
 
 StringSumHelper & operator + (const StringSumHelper &lhs, unsigned long num)
+{
+	StringSumHelper &a = const_cast<StringSumHelper&>(lhs);
+	a.append(num);
+	return a;
+}
+
+StringSumHelper & operator + (const StringSumHelper &lhs, long long num)
+{
+	StringSumHelper &a = const_cast<StringSumHelper&>(lhs);
+	a.append(num);
+	return a;
+}
+
+StringSumHelper & operator + (const StringSumHelper &lhs, unsigned long long num)
 {
 	StringSumHelper &a = const_cast<StringSumHelper&>(lhs);
 	a.append(num);
@@ -483,6 +521,8 @@ unsigned char String::endsWith( const String &s2 ) const
 /*********************************************/
 /*  Character Access                         */
 /*********************************************/
+
+const char String::zerotermination = 0;
 
 char String::charAt(unsigned int loc) const
 {
