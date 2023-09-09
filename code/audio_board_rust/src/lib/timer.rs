@@ -4,8 +4,7 @@ use TimerEvent::*;
 use teensy4_bsp as bsp;
 use bsp::ral::{pit, ccm};
 use cortex_m::peripheral::NVIC;
-
-#[link(name = "libteensy")]
+use core::ptr;
 
 pub struct Timer{
     count : u64
@@ -13,6 +12,13 @@ pub struct Timer{
 static mut PIT_COUNT: u64 = 0;
 fn timer_count() -> u64 {
     unsafe { PIT_COUNT }
+}
+
+fn nvic_set_priority_timer(irqnum: u32, priority: u8) {
+    let addr = 0xE000E400 as *mut u8;
+    unsafe {
+        ptr::write_volatile(addr.offset(irqnum as isize), priority);
+    }
 }
 
 pub fn pit_isr() {
@@ -45,6 +51,8 @@ fn timer_init(cycles : u32) -> bool {
 */
     pit_local.TIMER[channel_index].LDVAL.write(cycles);
     pit_local.TIMER[channel_index].TCTRL.write(3);
+    
+    nvic_set_priority_timer(bsp::Interrupt::PIT as u32, 208);
     unsafe { 
  //              NVIC::set_priority(&mut NVIC::PTR, bsp::Interrupt::PIT, 208);
                NVIC::unmask(bsp::Interrupt::PIT) };

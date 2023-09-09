@@ -1,19 +1,23 @@
-use cty;
+use cortex_m::interrupt::{enable,disable};
 use vumeter_lib::audio_hw::AudioEvent;
 //use AudioEvent::*;
 use teensy4_bsp as bsp;
 use cortex_m::peripheral::NVIC;
 use bsp::ral::{dma,dmamux,spdif,ccm};
-use bsp::ral;
 use bsp::pins::imxrt_iomuxc::{configure, Config, OpenDrain, PullKeeper, Speed, SlewRate, DriveStrength, Hysteresis};
-
-
-#[link(name = "libteensy")]
+use core::ptr;
 
 pub struct SPDIF {
     lbuf : [f32;128],
     rbuf : [f32;128],
     sr : Option<f32>
+}
+
+fn nvic_set_priority_spdif(irqnum: u32, priority: u8) {
+    let addr = 0xE000E400 as *mut u8;
+    unsafe {
+        ptr::write_volatile(addr.offset(irqnum as isize), priority);
+    }
 }
 
 #[no_mangle]
@@ -92,27 +96,28 @@ pub fn spdif_srpc_gainsel(n: u32) -> u32 {
 }
 
 fn copy_from_spdif_buffer(max: u32, out_l: &mut [f32], out_r: &mut [f32]) -> u32 {
-    unsafe {
-        let b_o = BUFFER_OFFSET;
-        let b_r_o = BUFFER_READ_OFFSET;
-        let remaining = if b_r_o <= b_o {
-            b_o - b_r_o
-        } else {
-            BUFFERLEN - b_r_o + b_o
+    disable();
+    let b_o = unsafe { BUFFER_OFFSET };
+    let mut b_r_o = unsafe { BUFFER_READ_OFFSET };
+    unsafe { enable() };
+    let remaining = if b_r_o <= b_o {
+        b_o - b_r_o
+    } else {
+        BUFFERLEN - b_r_o + b_o
+    };
+    let to_copy = remaining.min(max);
+    for i in 0..to_copy {
+        out_l[i as usize] = unsafe { BUFFER_L[b_r_o as usize] };
+        out_r[i as usize] = unsafe { BUFFER_R[b_r_o as usize] };
+        let _ = b_r_o.wrapping_add(1);
+        if b_r_o == BUFFERLEN {
+            b_r_o = 0;
         };
-        let to_copy = remaining.min(max);
-        for i in 0..to_copy {
-            out_l[i as usize] = BUFFER_L[b_r_o as usize];
-            out_r[i as usize] = BUFFER_R[b_r_o as usize];
-            let b_r_o_next = if b_r_o == BUFFERLEN - 1 {
-                0
-            } else {
-                b_r_o + 1
-            };
-            BUFFER_READ_OFFSET = b_r_o_next;
-        }
-        to_copy
     }
+    disable();
+    unsafe { BUFFER_READ_OFFSET = b_r_o };
+    unsafe { enable() };
+    to_copy
 }
 
 pub fn spdif_isr() {
@@ -132,13 +137,13 @@ pub fn spdif_dma_isr() {
 
     let mut src: &[i32] = unsafe { &SPDIF_RX_BUFFER };
     if daddr < (spdif_rx_buffer_address as u32 + (spdif_rx_buffer_length/2) as u32) {
-        unsafe { src = &SPDIF_RX_BUFFER [ spdif_rx_buffer_length/2..];}
+        src = unsafe { &SPDIF_RX_BUFFER [ spdif_rx_buffer_length/2..]};
     }
     else {
-        unsafe { src = &SPDIF_RX_BUFFER[..];}
+        src = unsafe { &SPDIF_RX_BUFFER[..]};
     }
 
-    if unsafe { BUFFER_OFFSET >= BUFFER_READ_OFFSET} || (unsafe { BUFFER_OFFSET } + (spdif_rx_buffer_length/4) as u32) < unsafe { BUFFER_READ_OFFSET } {
+    if unsafe { BUFFER_OFFSET >= BUFFER_READ_OFFSET || (BUFFER_OFFSET + (spdif_rx_buffer_length/4) as u32) < BUFFER_READ_OFFSET } {
         core.SCB.clean_dcache_by_address(src.as_ptr() as usize, (spdif_rx_buffer_length/2)*4);
     
         for i in 0..spdif_rx_buffer_length/4 {
@@ -175,7 +180,7 @@ pub fn config_spdif() {
     let dma_local = unsafe {dma::DMA::instance()};
     let dmamux_local = unsafe {dmamux::DMAMUX::instance()};
 
-    let iomuxc_local = unsafe { ral::iomuxc::IOMUXC::instance() };
+    //let iomuxc_local = unsafe { ral::iomuxc::IOMUXC::instance() };
 
     let spdif_rx_buffer_address: *const i32 = unsafe { SPDIF_RX_BUFFER.as_ptr() };
     let spdif_rx_buffer_length: usize = unsafe { SPDIF_RX_BUFFER.len() };
@@ -276,6 +281,7 @@ pub fn config_spdif() {
     spdif_local.SIE.write(spdif_local.SIE.read() | SPDIF_SIE_LOCK);
     spdif_local.SIE.write(spdif_local.SIE.read() | SPDIF_SIE_LOCKLOSS);
 
+    nvic_set_priority_spdif(bsp::Interrupt::SPDIF as u32, 208);
     unsafe { 
  //       NVIC::set_priority(&mut self, bsp::Interrupt::SPDIF, 208);
         NVIC::unmask(bsp::Interrupt::SPDIF) };

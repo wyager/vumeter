@@ -1,15 +1,10 @@
-use bsp::hal::{self, gpio};
+use bsp::hal;
 use teensy4_pins;
-use cty;
-use teensy4_pins::t40::P6;
 use vumeter_lib::audio_hw::SwitchEvent;
-use SwitchEvent::*;
+//use SwitchEvent::*;
 //use Pin::*;
 use teensy4_bsp as bsp;
 use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::digital::v2::PinState;
-
-#[link(name = "libteensy")]
 
 pub struct SleepPin{}
 
@@ -33,7 +28,6 @@ impl SleepPin {
         }
     }
 }
-use bsp::hal::gpio::Port;
 pub struct Pwr{}
 
 #[no_mangle]
